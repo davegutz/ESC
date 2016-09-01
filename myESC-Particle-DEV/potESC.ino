@@ -58,7 +58,7 @@ SYSTEM_THREAD(ENABLED);      // Make sure heat system code always run regardless
 #define POT_PIN          A0                 // Potentiometer input pin on Photon (A0)
 //
 // Dependent includes.   Easier to debug code if remove unused include files
-#include "math.h"
+//#include "math.h"
 
 // Global variables
 Servo               myservo;  // create servo object to control a servo
@@ -68,11 +68,11 @@ int                 verbose         = 3;  // Debugging Serial.print as much as y
 
 void setup()
 {
-  WiFi.off();
+  WiFi.disconnect();
   Serial.begin(9600);
   myservo.attach(PWM_PIN);  // attaches the servo.  Only supported on pins that have PWM
   pinMode(POT_PIN, INPUT);
-  delay(3000);
+  delay(10000);
   if (verbose>1) Serial.printf("\nCalibrating ESC...");
   while (throttle<179)
   {
@@ -88,6 +88,9 @@ void setup()
   }
   if (verbose>1) Serial.printf("Done.\n");
   Serial.printf("To flash code to this device, push and hold both Photon buttons, release RESET until purple observed, then release.\n");
+
+  WiFi.off();
+  delay(5000);
 }
 
 void loop() {
@@ -97,6 +100,7 @@ void loop() {
   potValue    = analogRead(POT_PIN);
 #endif
 throttle = map(potValue, 0, 4096, 0, 179);
+if (verbose>1) Serial.printf("Throttle=%ld\n", throttle);
 myservo.write(throttle);                // sets the servo position according to the scaled value
 delay(15);                              // waits for the servo to get there
 }
