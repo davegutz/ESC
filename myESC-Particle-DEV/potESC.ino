@@ -40,8 +40,9 @@ by Dave Gutz
 //#pragma SPARK_NO_PREPROCESSOR
 //
 // Standard
-#include "application.h"
-SYSTEM_THREAD(ENABLED);      // Make sure heat system code always run regardless of network status
+#include "application.h"      // Should not be needed if file .ino
+SYSTEM_THREAD(ENABLED);       // Make sure heat system code always run regardless of network status
+#include "math.h"
 //
 // Test features usually commented
 //
@@ -56,15 +57,29 @@ SYSTEM_THREAD(ENABLED);      // Make sure heat system code always run regardless
 // #define CONSTANT
 #define PWM_PIN          A4                 // PWM output (A4)
 #define POT_PIN          A0                 // Potentiometer input pin on Photon (A0)
+#define CONTROL_DELAY    1UL               // Control law wait, ms
+#define PUBLISH_DELAY    40UL               // Time between cloud updates (10000), ms
+#define READ_DELAY       1UL               // Sensor read wait (5000, 100 for stress test), ms
+#define QUERY_DELAY      15000UL            // Web query wait (15000, 100 for stress test), ms
+#ifndef BARE_PHOTON
+  #define FILTER_DELAY   1UL             // In range of tau/4 - tau/3  * 1000, ms
+#else
+  #define FILTER_DELAY   1UL             // In range of tau/4 - tau/3  * 1000, ms
+#endif
 //
 // Dependent includes.   Easier to debug code if remove unused include files
-//#include "math.h"
+#include "myFilters.h"
 
 // Global variables
+LagTustin*          throttleFilter;         // Exponential rate lag filter
 Servo               myservo;  // create servo object to control a servo
-int                 throttle        = 0;    // Pot value, 0-179 degrees
+int                 numTimeouts     = 0;    // Number of Particle.connect() needed to unfreeze
 int                 potValue        = 2872; // Dial raw value, 0-4096
-int                 verbose         = 3;  // Debugging Serial.print as much as you can tolerate.  0=none
+const  double       tau             = 0.5;  // Filter time constant, sec
+int                 throttle        = 0;    // Pot value, 0-179 degrees
+int                 throttle_filt   = 0;    // Pot value, 0-179 degrees
+double              updateTime      = 0.0;  // Control law update time, sec
+int                 verbose         = 3;    // Debugging Serial.print as much as you can tolerate.  0=none
 
 void setup()
 {
@@ -72,7 +87,9 @@ void setup()
   Serial.begin(9600);
   myservo.attach(PWM_PIN);  // attaches the servo.  Only supported on pins that have PWM
   pinMode(POT_PIN, INPUT);
-  delay(10000);
+  // Rate filter
+  throttleFilter  = new LagTustin(float(CONTROL_DELAY)/1000.0, tau, -0.1, 0.1);
+  delay(5000);
   if (verbose>1) Serial.printf("\nCalibrating ESC...");
   while (throttle<179)
   {
@@ -80,6 +97,7 @@ void setup()
     myservo.write(throttle);
     delay(20);
   }
+  delay(1000);
   while (throttle>0)
   {
     throttle = max(0, throttle-10);
@@ -94,13 +112,75 @@ void setup()
 }
 
 void loop() {
-// Interrogate pot; run fast for good tactile feedback
-// my pot puts out 0- 4096 observed using Tinker
+  unsigned long           currentTime;        // Time result
+  unsigned long           now = millis();     // Keep track of time
+  bool                    control;            // Control sequence, T/F
+  bool                    filter;             // Filter for temperature, T/F
+  bool                    publish;            // Publish, T/F
+  bool                    query;              // Query schedule and OAT, T/F
+  bool                    read;               // Read, T/F
+  bool                    checkPot;           // Display to LED, T/F
+  static double           lastHour     = 0.0; // Past used time value,  hours
+  static unsigned long    lastControl  = 0UL; // Last control law time, ms
+  static unsigned long    lastFilter   = 0UL; // Last filter time, ms
+  static unsigned long    lastPublish  = 0UL; // Last publish time, ms
+  static unsigned long    lastQuery    = 0UL; // Last read time, ms
+  static unsigned long    lastRead     = 0UL; // Last read time, ms
+  static int              RESET        = 1;   // Dynamic reset
+  static double           tFilter;            // Modeled temp, F
+
+
+  // Executive
+  publish   = ((now-lastPublish) >= PUBLISH_DELAY);
+  if ( publish ) lastPublish  = now;
+
+  read    = ((now-lastRead) >= READ_DELAY || RESET>0) && !publish;
+  if ( read     ) lastRead      = now;
+
+  query   = ((now-lastQuery)>= QUERY_DELAY) && !read;
+  if ( query    ) lastQuery     = now;
+
+  filter    = ((now-lastFilter)>=FILTER_DELAY) || RESET>0;
+  if ( filter )
+  {
+    tFilter     = float(now-lastFilter)/1000.0;
+    if ( verbose > 3 ) Serial.printf("Filter update=%7.3f\n", tFilter);
+    lastFilter    = now;
+  }
+
+  checkPot   = read;
+
+  // Interrogate pot; run fast for good tactile feedback
+  // my pot puts out 0- 4096 observed using Tinker
+  if ( checkPot )
+  {
 #ifndef BARE_PHOTON
-  potValue    = analogRead(POT_PIN);
+    potValue    = analogRead(POT_PIN);
 #endif
-throttle = map(potValue, 0, 4096, 0, 179);
-if (verbose>1) Serial.printf("Throttle=%ld\n", throttle);
-myservo.write(throttle);                // sets the servo position according to the scaled value
-delay(15);                              // waits for the servo to get there
+    throttle = map(potValue, 0, 4096, 0, 179);
+  }
+
+  if ( filter )
+  {
+    if ( verbose>4 ) Serial.printf("FILTER\n");
+    throttle_filt = (int)throttleFilter->calculate(double(throttle), RESET, tFilter);
+    if ( verbose > 4) Serial.printf("throttle=%f, RESET=%d, tFilter=%f a=%f b=%f rate=%f state=%f filt=%f\n", throttle, RESET, tFilter, throttleFilter->a(), throttleFilter->b(), throttleFilter->rate(), throttleFilter->state(), throttle_filt);
+    RESET = 0;
+  }
+
+
+  unsigned long deltaT = now - lastControl;
+  control = (deltaT >= CONTROL_DELAY);
+  if ( control  )
+  {
+    updateTime    = float(deltaT)/1000.0 + float(numTimeouts)/100.0;
+    lastControl   = now;
+    myservo.write(throttle);                // sets the servo position according to the scaled value
+  }
+
+
+  if ( publish )
+  {
+    if (verbose>1) Serial.printf("Throttle Filt=%ld, updateTime=%f\n", throttle_filt, updateTime);
+  }
 }
