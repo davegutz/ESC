@@ -43,6 +43,7 @@ by Dave Gutz
 #include "application.h"      // Should not be needed if file .ino
 SYSTEM_THREAD(ENABLED);       // Make sure heat system code always run regardless of network status
 #include "math.h"
+#include "analyzer.h"
 //
 // Test features usually commented
 //
@@ -57,14 +58,16 @@ SYSTEM_THREAD(ENABLED);       // Make sure heat system code always run regardles
 // #define CONSTANT
 #define PWM_PIN          A4                 // PWM output (A4)
 #define POT_PIN          A0                 // Potentiometer input pin on Photon (A0)
-#define CONTROL_DELAY    200UL              // Control law wait (), micros
-#define PUBLISH_DELAY    40000UL            // Time between cloud updates (), micros
-#define READ_DELAY       200UL              // Sensor read wait (1000, 100 for stress test), micros
+#define CONTROL_DELAY    1000UL              // Control law wait (), micros
+#define FR_DELAY         5000000UL          // Time to start FR, micros
+#define LED_PIN          D7                 // Status LED
+#define PUBLISH_DELAY    400000UL           // Time between cloud updates (), micros
+#define READ_DELAY       1000UL              // Sensor read wait (1000, 100 for stress test), micros
 #define QUERY_DELAY      1500000UL          // Web query wait (15000000, 100 for stress test), micros
 #ifndef BARE_PHOTON
-  #define FILTER_DELAY   200UL              // In range of tau/4 - tau/3  * 1000, ms
+  #define FILTER_DELAY   1000UL              // In range of tau/4 - tau/3  * 1000, micros
 #else
-  #define FILTER_DELAY   200UL              // In range of tau/4 - tau/3  * 1000, ms
+  #define FILTER_DELAY   1000UL              // In range of tau/4 - tau/3  * 1000, micros
 #endif
 //
 // Dependent includes.   Easier to debug code if remove unused include files
@@ -73,6 +76,7 @@ SYSTEM_THREAD(ENABLED);       // Make sure heat system code always run regardles
 // Global variables
 LagTustin*          throttleFilter1;         // Exponential rate lag filter
 LagTustin*          throttleFilter2;         // Exponential rate lag filter
+FR_Analyzer*        analyzer;                // Frequency response analyzer
 Servo               myservo;  // create servo object to control a servo
 int                 numTimeouts     = 0;    // Number of Particle.connect() needed to unfreeze
 int                 potValue        = 2872; // Dial raw value, 0-4096
@@ -82,16 +86,21 @@ double              throttle1       = 0;    // Pot value, 0-179 degrees
 double              throttle_filt   = 0;    // Pot value, 0-179 degrees
 double              updateTime      = 0.0;  // Control law update time, sec
 int                 verbose         = 3;    // Debugging Serial.print as much as you can tolerate.  0=none
-
+double              fn[2]           = {0, 0}; // Functions to analyze
+const int           ix[1]           = {0};  // Indeces of fn to excitations
+const int           iy[1]           = {1};  // Indeces of fn to responses
 void setup()
 {
   WiFi.disconnect();
   Serial.begin(9600);
   myservo.attach(PWM_PIN);  // attaches the servo.  Only supported on pins that have PWM
   pinMode(POT_PIN, INPUT);
+  pinMode(LED_PIN, OUTPUT);
   // Lag filter
   throttleFilter1  = new LagTustin(float(CONTROL_DELAY)/1000000.0, tau, -0.1, 0.1);
   throttleFilter2  = new LagTustin(float(CONTROL_DELAY)/1000000.0, tau, -0.1, 0.1);
+  // analyzer
+  analyzer         = new FR_Analyzer(1, 3, 0.2, 0.1, 1, double(FILTER_DELAY/1e6), fn, ix, iy, 2, 1);
   delay(1000);
   if (verbose>1) Serial.printf("\nCalibrating ESC...");
   while (throttle<179)
@@ -123,15 +132,17 @@ void loop() {
   bool                    query;              // Query schedule and OAT, T/F
   bool                    read;               // Read, T/F
   bool                    checkPot;           // Display to LED, T/F
+  bool                    frequencyResponse;  // Begin frequencyResponse, T/F
   static double           lastHour     = 0.0; // Past used time value,  hours
-  static unsigned long    lastControl  = 0UL; // Last control law time, ms
-  static unsigned long    lastFilter   = 0UL; // Last filter time, ms
-  static unsigned long    lastPublish  = 0UL; // Last publish time, ms
-  static unsigned long    lastQuery    = 0UL; // Last read time, ms
-  static unsigned long    lastRead     = 0UL; // Last read time, ms
+  static unsigned long    lastControl  = 0UL; // Last control law time, micros
+  static unsigned long    lastFilter   = 0UL; // Last filter time, micros
+  static unsigned long    lastPublish  = 0UL; // Last publish time, micros
+  static unsigned long    lastQuery    = 0UL; // Last read time, micros
+  static unsigned long    lastRead     = 0UL; // Last read time, micros
+  static unsigned long    lastFR       = 0UL; // Last frequencyResponse, micros
   static int              RESET        = 1;   // Dynamic reset
   static double           tFilter;            // Modeled temp, F
-
+  static double           exciter      = 1;   // Frequency response excitation, fraction
 
   // Executive
   publish   = ((now-lastPublish) >= PUBLISH_DELAY);
@@ -150,6 +161,16 @@ void loop() {
     if ( verbose > 3 ) Serial.printf("Filter update=%7.3f\n", tFilter);
     lastFilter    = now;
   }
+  if ((now-lastFR) >= FR_DELAY ) frequencyResponse = true;
+  if ( frequencyResponse )
+  {
+    digitalWrite(LED_PIN,  1);
+    lastFR = now;
+  }
+  else
+  {
+    digitalWrite(LED_PIN,  0);
+  }
 
   checkPot   = read;
 
@@ -166,8 +187,11 @@ void loop() {
   if ( filter )
   {
     if ( verbose>4 ) Serial.printf("FILTER\n");
-    throttle1     = (int)throttleFilter1->calculate(throttle,  RESET, tFilter);
-    throttle_filt = (int)throttleFilter2->calculate(throttle1, RESET, tFilter);
+    throttle_filt     = (int)throttleFilter1->calculate(throttle,  RESET, tFilter);
+    if ( frequencyResponse ) exciter = analyzer->calculate();
+    fn[0]   = throttle_filt*exciter;
+    throttle1         = (int)throttleFilter2->calculate(fn[0], RESET, tFilter);
+    fn[1]   = throttle1;
     if ( verbose > 4) Serial.printf("throttle=%f, RESET=%d, tFilter=%f a=%f b=%f rate=%f state=%f filt=%f\n", throttle, RESET, tFilter, throttleFilter2->a(), throttleFilter2->b(), throttleFilter2->rate(), throttleFilter2->state(), throttle_filt);
     RESET = 0;
   }
@@ -185,6 +209,7 @@ void loop() {
 
   if ( publish )
   {
-    if (verbose>1) Serial.printf("Throttle Filt=%4.2f, updateTime=%7.5f\n", throttle_filt, updateTime);
+    if (verbose>1) Serial.printf("Throttle Filt=%4.2f, Throttle Exc=%4.2f, exciter=%4.2f, omega=%4.2f, updateTime=%7.5f\n",
+    throttle_filt, throttle1, exciter, analyzer->omega(), updateTime);
   }
 }
