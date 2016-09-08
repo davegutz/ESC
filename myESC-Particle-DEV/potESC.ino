@@ -58,11 +58,11 @@ SYSTEM_THREAD(ENABLED);       // Make sure heat system code always run regardles
 // #define CONSTANT
 #define PWM_PIN          A4                 // PWM output (A4)
 #define POT_PIN          A0                 // Potentiometer input pin on Photon (A0)
-#define CONTROL_DELAY    1000UL              // Control law wait (), micros
-#define FR_DELAY         5000000UL          // Time to start FR, micros
+#define CONTROL_DELAY    1000UL             // Control law wait (), micros
+#define FR_DELAY         50000000L          // Time to start FR, micros
 #define LED_PIN          D7                 // Status LED
 #define PUBLISH_DELAY    400000UL           // Time between cloud updates (), micros
-#define READ_DELAY       1000UL              // Sensor read wait (1000, 100 for stress test), micros
+#define READ_DELAY       1000UL             // Sensor read wait (1000, 100 for stress test), micros
 #define QUERY_DELAY      1500000UL          // Web query wait (15000000, 100 for stress test), micros
 #ifndef BARE_PHOTON
   #define FILTER_DELAY   1000UL              // In range of tau/4 - tau/3  * 1000, micros
@@ -80,12 +80,12 @@ FR_Analyzer*        analyzer;                // Frequency response analyzer
 Servo               myservo;  // create servo object to control a servo
 int                 numTimeouts     = 0;    // Number of Particle.connect() needed to unfreeze
 int                 potValue        = 2872; // Dial raw value, 0-4096
-const  double       tau             = 0.2;  // Filter time constant, sec
+const  double       tau             = 0.1;  // Filter time constant, sec
 double              throttle        = 0;    // Pot value, 0-179 degrees
 double              throttle1       = 0;    // Pot value, 0-179 degrees
 double              throttle_filt   = 0;    // Pot value, 0-179 degrees
 double              updateTime      = 0.0;  // Control law update time, sec
-int                 verbose         = 3;    // Debugging Serial.print as much as you can tolerate.  0=none
+int                 verbose         = 2;    // Debugging Serial.print as much as you can tolerate.  0=none
 double              fn[2]           = {0, 0}; // Functions to analyze
 const int           ix[1]           = {0};  // Indeces of fn to excitations
 const int           iy[1]           = {1};  // Indeces of fn to responses
@@ -100,7 +100,7 @@ void setup()
   throttleFilter1  = new LagTustin(float(CONTROL_DELAY)/1000000.0, tau, -0.1, 0.1);
   throttleFilter2  = new LagTustin(float(CONTROL_DELAY)/1000000.0, tau, -0.1, 0.1);
   // analyzer
-  analyzer         = new FR_Analyzer(1, 3, 0.2, 0.1, 1, double(FILTER_DELAY/1e6), fn, ix, iy, 2, 1);
+  analyzer         = new FR_Analyzer(0, 2, 0.1, 0.1, 5, double(FILTER_DELAY/1e6), fn, ix, iy, 2, 1);
   delay(1000);
   if (verbose>1) Serial.printf("\nCalibrating ESC...");
   while (throttle<179)
@@ -139,7 +139,7 @@ void loop() {
   static unsigned long    lastPublish  = 0UL; // Last publish time, micros
   static unsigned long    lastQuery    = 0UL; // Last read time, micros
   static unsigned long    lastRead     = 0UL; // Last read time, micros
-  static unsigned long    lastFR       = 0UL; // Last frequencyResponse, micros
+  static unsigned long    lastFR       = now; // Last frequencyResponse, micros
   static int              RESET        = 1;   // Dynamic reset
   static double           tFilter;            // Modeled temp, F
   static double           exciter      = 1;   // Frequency response excitation, fraction
@@ -162,7 +162,7 @@ void loop() {
     lastFilter    = now;
   }
   if ((now-lastFR) >= FR_DELAY ) frequencyResponse = true;
-  if ( frequencyResponse )
+  if ( frequencyResponse && !analyzer->complete() )
   {
     digitalWrite(LED_PIN,  1);
     lastFR = now;
