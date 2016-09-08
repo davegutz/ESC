@@ -100,7 +100,7 @@ void setup()
   throttleFilter1  = new LagTustin(float(CONTROL_DELAY)/1000000.0, tau, -0.1, 0.1);
   throttleFilter2  = new LagTustin(float(CONTROL_DELAY)/1000000.0, tau, -0.1, 0.1);
   // analyzer
-  analyzer         = new FR_Analyzer(0, 2, 0.1, 0.1, 5, double(FILTER_DELAY/1e6), fn, ix, iy, 2, 1);
+  analyzer         = new FR_Analyzer(0, 2, 0.1, 0.05, 1, double(FILTER_DELAY/1e6), fn, ix, iy, 2, 1);
   delay(1000);
   if (verbose>1) Serial.printf("\nCalibrating ESC...");
   while (throttle<179)
@@ -203,13 +203,13 @@ void loop() {
   {
     updateTime    = float(deltaT)/1000000.0 + float(numTimeouts)/100000.0;
     lastControl   = now;
-    myservo.write(throttle_filt);                // sets the servo position according to the scaled value
+    myservo.write(throttle_filt*exciter);                // sets the servo position according to the scaled value
   }
 
 
   if ( publish )
   {
-    if (verbose>1) Serial.printf("Throttle Filt=%4.2f, Throttle Exc=%4.2f, exciter=%4.2f, omega=%4.2f, updateTime=%7.5f\n",
+    if (verbose>1) Serial.printf("Throttle Filt=%4.2f, Throttle Exc=%4.2f, exciter=%6.4f, omega=%4.2f, updateTime=%7.5f\n",
     throttle_filt, throttle1, exciter, analyzer->omega(), updateTime);
   }
 }
