@@ -161,8 +161,8 @@ void loop() {
     if ( verbose > 3 ) Serial.printf("Filter update=%7.3f\n", tFilter);
     lastFilter    = now;
   }
-  if ((now-lastFR) >= FR_DELAY ) frequencyResponse = true;
-  if ( frequencyResponse && !analyzer->complete() )
+  frequencyResponse = ((now-lastFR) >= FR_DELAY || !analyzer->complete() );
+  if ( frequencyResponse )
   {
     digitalWrite(LED_PIN,  1);
     lastFR = now;
