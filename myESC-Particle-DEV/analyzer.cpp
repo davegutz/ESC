@@ -5,16 +5,16 @@
 FR_Analyzer::FR_Analyzer(const int omegaLogMin, const int omegaLogMax, const double deltaOmegaLog, const double fractionalInputHalfSine,
   const int numInitCycles, const double T, const double sig[], const int ix[], const int iy[], const int nsig, const int ntf)
   : aint_(0), complete_(false), cosOmT_(0), deltaOmegaLog_(deltaOmegaLog), fractionalInputHalfSine_(fractionalInputHalfSine),
-  iOmega_(0), iResults_(0UL), iTargetOmega_(0), iTargetResults_(0UL), nsig_(nsig), ntf_(ntf), numInitCycles_(0), numAtOmega_(0),
+  iOmega_(0), iResults_(0UL), iTargetOmega_(0), iTargetResults_(0UL), nsig_(nsig), ntf_(ntf), numInitCycles_(0),
   omega_(0), omegaLog_(0), omegaLogMax_(omegaLogMax), omegaLogMin_(omegaLogMin), sig_(sig), sinOmT_(0), T_(T), timeAtOmega_(0),
-  timeTargetFreq_(0), timeTotalSweep_(0), Tlog_(log10(T))
+  timeTargetOmega_(0), timeTotalSweep_(0), Tlog_(log10(T))
   {
 
   // Initialize arrays
   a1_         = new double[nsig_];
   b1_         = new double[nsig_];
-  ix_         = new int[ntf_]; for (int i=0; i<ntf_; i++) ix_[i] = ix[i];
-  iy_         = new int[ntf_]; for (int i=0; i<ntf_; i++) iy_[i] = iy[i];
+  ix_         = new unsigned int[ntf_]; for (int i=0; i<ntf_; i++) ix_[i] = ix[i];
+  iy_         = new unsigned int[ntf_]; for (int i=0; i<ntf_; i++) iy_[i] = iy[i];
   sigGain_    = new double[nsig_];
   sigPhas_    = new double[nsig_];
   transGain_  = new double[ntf_];
@@ -23,22 +23,29 @@ FR_Analyzer::FR_Analyzer(const int omegaLogMin, const int omegaLogMax, const dou
   // Calculate run time
   omegaLog_     	= omegaLogMin_;
   numInitCycles_  = .25 + (float)(numInitCycles_);
-  numAtOmega_    	= (int)(2. * pi * numInitCycles_ / T_ / pow(10, omegaLog_) + .5);
-  omega_   		    = 2. * pi * numInitCycles_ / T_ / (float)(numAtOmega_);
-  iOmega_  		    = -numAtOmega_;
+  iTargetOmega_  	= (int)(2. * pi * numInitCycles_ / T_ / pow(10, omegaLog_) + .5);
+  omega_   		    = 2. * pi * numInitCycles_ / T_ / (float)(iTargetOmega_);
   iTargetResults_ = (int)((omegaLogMax_ - omegaLogMin_) / deltaOmegaLog_ + .5) + 1;
-  iTargetOmega_   = numAtOmega_;
   for(iResults_ = 0; iResults_ < iTargetResults_; iResults_++){
       omegaLog_         = omegaLogMin_ + (float)(iResults_) * deltaOmegaLog_;
       modf((omegaLog_ + Tlog_), &aint_);
       numInitCycles_    = fmin(fmax((4. + aint_), 1.), 4.);
-      numAtOmega_        = (int)(2. * pi * numInitCycles_ / T_ / pow(10, omegaLog_) + .5);
-      iTargetOmega_     += numAtOmega_;
+      iTargetOmega_     += (int)(2. * pi * numInitCycles_ / T_ / pow(10, omegaLog_) + .5);
+      timeTotalSweep_   += iTargetOmega_ * T_;
   }
-  timeTotalSweep_  = iTargetOmega_ * T_;
-  iResults_      = 0;
+  omegaLog_     	= omegaLogMin_;
+  modf((omegaLog_ + Tlog_), &aint_);
+  numInitCycles_    = fmin(fmax((4. + aint_), 1.), 4.);
+  iTargetOmega_  	= (int)(2. * pi * numInitCycles_ / T_ / pow(10, omegaLog_) + .5);
+  omega_   		    = 2. * pi * numInitCycles_ / T_ / (float)(iTargetOmega_);
+  iOmega_  		    = -iTargetOmega_;
+  iResults_       = 0;
+  Serial.printf("timeTotalSweep_=%5.2f", timeTotalSweep_);
   //xNormal   = 1. + fractionalInputHalfSine_ * (1. + sin(omega_ * timeAtOmega_));
 }
+
+
+
 
 double FR_Analyzer::calculate()
 {
@@ -54,7 +61,7 @@ double FR_Analyzer::calculate()
   }
 
   // Update Fourier Series integrals.
-  if(timeTargetFreq_ != 0)
+  if(timeTargetOmega_ != 0)
   {
     double coswtn  = cos(omega_ * timeAtOmega_);
     double sinwtn  = sin(omega_ * timeAtOmega_);
@@ -70,7 +77,7 @@ double FR_Analyzer::calculate()
   }
   else
   {
-    if(timeTargetFreq_ != 0)
+    if(timeTargetOmega_ != 0)
     {
       // Finish up Fourier Series integrals.
       for(isig = 0; isig < nsig_; isig++)
@@ -109,8 +116,9 @@ double FR_Analyzer::calculate()
     omegaLog_ = omegaLogMin_ + (float)(iResults_) * deltaOmegaLog_;
     modf((omegaLog_ + Tlog_), &aint_);
     numInitCycles_    = fmin(fmax((4. + aint_), 1.), 4.);
-    timeTargetFreq_  = (int)(2. * pi * numInitCycles_ / T_ / pow(10, omegaLog_) + .5);
-    omega_   = 2. * pi * numInitCycles_ / T_ / (float)(timeTargetFreq_);
+    iTargetOmega_     = (int)(2. * pi * numInitCycles_ / T_ / pow(10, omegaLog_) + .5);
+    omega_   = 2. * pi * numInitCycles_ / T_ / (float)(iTargetOmega_);
+    timeTargetOmega_   = iTargetOmega_ * T_;
     // Initialize integrators
     for(isig = 0; isig < nsig_; isig++)
     {
@@ -122,4 +130,11 @@ double FR_Analyzer::calculate()
   timeAtOmega_   = iOmega_ * T_;
   xNormal   = 1. + fractionalInputHalfSine_ * (1. + sin(omega_ * timeAtOmega_));
   return(xNormal);
+}
+
+
+void FR_Analyzer::publish()
+{
+  Serial.printf("omegaLog=%5.3f, aint=%5.3f, numInitCycles=%u, omega=%5.3f, iOmega=%u/%u, timeAtOmega=%5.3f/%5.3f, iResults=%u/%u",
+  omegaLog_, aint_, numInitCycles_, omega_, iOmega_, iTargetOmega_, timeAtOmega_, timeTargetOmega_, iResults_, iTargetResults_);
 }

@@ -59,11 +59,10 @@ SYSTEM_THREAD(ENABLED);       // Make sure heat system code always run regardles
 #define PWM_PIN          A4                 // PWM output (A4)
 #define POT_PIN          A0                 // Potentiometer input pin on Photon (A0)
 #define CONTROL_DELAY    1000UL             // Control law wait (), micros
-#define FR_DELAY         50000000L          // Time to start FR, micros
+#define FR_DELAY         5000000UL          // Time to start FR, micros
 #define LED_PIN          D7                 // Status LED
-#define PUBLISH_DELAY    400000UL           // Time between cloud updates (), micros
+#define PUBLISH_DELAY    40000UL            // Time between cloud updates (), micros
 #define READ_DELAY       1000UL             // Sensor read wait (1000, 100 for stress test), micros
-#define QUERY_DELAY      1500000UL          // Web query wait (15000000, 100 for stress test), micros
 #ifndef BARE_PHOTON
   #define FILTER_DELAY   1000UL              // In range of tau/4 - tau/3  * 1000, micros
 #else
@@ -101,6 +100,7 @@ void setup()
   throttleFilter2  = new LagTustin(float(CONTROL_DELAY)/1000000.0, tau, -0.1, 0.1);
   // analyzer
   analyzer         = new FR_Analyzer(0, 2, 0.1, 0.05, 1, double(FILTER_DELAY/1e6), fn, ix, iy, 2, 1);
+  analyzer->publish();   Serial.printf("\n");
   delay(1000);
   if (verbose>1) Serial.printf("\nCalibrating ESC...");
   while (throttle<179)
@@ -124,22 +124,18 @@ void setup()
 }
 
 void loop() {
-  unsigned long           currentTime;        // Time result
-  unsigned long           now = micros();     // Keep track of time
   bool                    control;            // Control sequence, T/F
   bool                    filter;             // Filter for temperature, T/F
   bool                    publish;            // Publish, T/F
-  bool                    query;              // Query schedule and OAT, T/F
   bool                    read;               // Read, T/F
   bool                    checkPot;           // Display to LED, T/F
   bool                    frequencyResponse;  // Begin frequencyResponse, T/F
-  static double           lastHour     = 0.0; // Past used time value,  hours
+  unsigned long           now = micros();     // Keep track of time
   static unsigned long    lastControl  = 0UL; // Last control law time, micros
   static unsigned long    lastFilter   = 0UL; // Last filter time, micros
   static unsigned long    lastPublish  = 0UL; // Last publish time, micros
-  static unsigned long    lastQuery    = 0UL; // Last read time, micros
   static unsigned long    lastRead     = 0UL; // Last read time, micros
-  static unsigned long    lastFR       = now; // Last frequencyResponse, micros
+  static unsigned long    lastFR       = 0UL; // Last frequencyResponse, micros
   static int              RESET        = 1;   // Dynamic reset
   static double           tFilter;            // Modeled temp, F
   static double           exciter      = 1;   // Frequency response excitation, fraction
@@ -151,9 +147,6 @@ void loop() {
   read    = ((now-lastRead) >= READ_DELAY || RESET>0) && !publish;
   if ( read     ) lastRead      = now;
 
-  query   = ((now-lastQuery)>= QUERY_DELAY) && !read;
-  if ( query    ) lastQuery     = now;
-
   filter    = ((now-lastFilter)>=FILTER_DELAY) || RESET>0;
   if ( filter )
   {
@@ -161,11 +154,10 @@ void loop() {
     if ( verbose > 3 ) Serial.printf("Filter update=%7.3f\n", tFilter);
     lastFilter    = now;
   }
-  frequencyResponse = ((now-lastFR) >= FR_DELAY || !analyzer->complete() );
+  frequencyResponse = ((now-lastFR) >= FR_DELAY && !analyzer->complete() );
   if ( frequencyResponse )
   {
     digitalWrite(LED_PIN,  1);
-    lastFR = now;
   }
   else
   {
@@ -209,7 +201,12 @@ void loop() {
 
   if ( publish )
   {
-    if (verbose>1) Serial.printf("Throttle Filt=%4.2f, Throttle Exc=%4.2f, exciter=%6.4f, omega=%4.2f, updateTime=%7.5f\n",
+    if (verbose>1) Serial.printf("ThrotFlt=%4.2f, throt1=%4.2f, exc=%6.4f, omega=%4.2f, T=%7.5f, ",
     throttle_filt, throttle1, exciter, analyzer->omega(), updateTime);
+    if( !analyzer->complete() )
+    {
+      analyzer->publish();
+    }
+    Serial.printf("\n");
   }
 }
