@@ -55,7 +55,7 @@ double FR_Analyzer::calculate()
   timeAtOmega_  = iOmega_ * T_;
 	if(iResults_ > iTargetResults_)
 	{
-		xNormal   = 1. + fractionalInputHalfSine_;
+		xNormal   = 1.;
     complete_ = true;
 		return(xNormal);
   }
@@ -107,7 +107,7 @@ double FR_Analyzer::calculate()
       if(iResults_ > iTargetResults_)
       {
         complete_ = true;
-        xNormal   = 1. + fractionalInputHalfSine_;
+        xNormal   = 1.;
         return(xNormal);
       }
     }
@@ -128,7 +128,7 @@ double FR_Analyzer::calculate()
     iOmega_  = 1;
   }
   timeAtOmega_   = iOmega_ * T_;
-  xNormal   = 1. + fractionalInputHalfSine_ * (1. + sin(omega_ * timeAtOmega_));
+  xNormal   = 1. + fractionalInputHalfSine_ * (1. - cos(omega_ * timeAtOmega_));
   return(xNormal);
 }
 

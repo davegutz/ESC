@@ -58,15 +58,13 @@ SYSTEM_THREAD(ENABLED);       // Make sure heat system code always run regardles
 // #define CONSTANT
 #define PWM_PIN          A4                 // PWM output (A4)
 #define POT_PIN          A0                 // Potentiometer input pin on Photon (A0)
-#define CONTROL_DELAY    1000UL             // Control law wait (), micros
-#define FR_DELAY         5000000UL          // Time to start FR, micros
+#define FR_DELAY         10000000UL         // Time to start FR, micros
 #define LED_PIN          D7                 // Status LED
 #define PUBLISH_DELAY    40000UL            // Time between cloud updates (), micros
-#define READ_DELAY       1000UL             // Sensor read wait (1000, 100 for stress test), micros
 #ifndef BARE_PHOTON
-  #define FILTER_DELAY   1000UL              // In range of tau/4 - tau/3  * 1000, micros
+  #define CONTROL_DELAY    1000UL           // Control law wait (), micros
 #else
-  #define FILTER_DELAY   1000UL              // In range of tau/4 - tau/3  * 1000, micros
+  #define CONTROL_DELAY    1000UL           // Control law wait (), micros
 #endif
 //
 // Dependent includes.   Easier to debug code if remove unused include files
@@ -99,7 +97,7 @@ void setup()
   throttleFilter1  = new LagTustin(float(CONTROL_DELAY)/1000000.0, tau, -0.1, 0.1);
   throttleFilter2  = new LagTustin(float(CONTROL_DELAY)/1000000.0, tau, -0.1, 0.1);
   // analyzer
-  analyzer         = new FR_Analyzer(0, 2, 0.1, 0.05, 1, double(FILTER_DELAY/1e6), fn, ix, iy, 2, 1);
+  analyzer         = new FR_Analyzer(0, 2, 0.1, 0.05, 1, double(CONTROL_DELAY/1e6), fn, ix, iy, 2, 1);
   analyzer->publish();   Serial.printf("\n");
   delay(1000);
   if (verbose>1) Serial.printf("\nCalibrating ESC...");
@@ -144,10 +142,10 @@ void loop() {
   publish   = ((now-lastPublish) >= PUBLISH_DELAY);
   if ( publish ) lastPublish  = now;
 
-  read    = ((now-lastRead) >= READ_DELAY || RESET>0) && !publish;
+  read    = ((now-lastRead) >= CONTROL_DELAY || RESET>0) && !publish;
   if ( read     ) lastRead      = now;
 
-  filter    = ((now-lastFilter)>=FILTER_DELAY) || RESET>0;
+  filter    = ((now-lastFilter)>=CONTROL_DELAY) || RESET>0;
   if ( filter )
   {
     tFilter     = float(now-lastFilter)/1000000.0;
@@ -201,7 +199,7 @@ void loop() {
 
   if ( publish )
   {
-    if (verbose>1) Serial.printf("ThrotFlt=%4.2f, throt1=%4.2f, exc=%6.4f, omega=%4.2f, T=%7.5f, ",
+    if (verbose>1) Serial.printf("ThrotFlt=%4.2f, throt1=%4.2f, exc=%6.4f, omega=%5.3f, T=%8.6f, ",
     throttle_filt, throttle1, exciter, analyzer->omega(), updateTime);
     if( !analyzer->complete() )
     {
