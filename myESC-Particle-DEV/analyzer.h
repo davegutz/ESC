@@ -3,13 +3,15 @@
 
 static  const   double  pi  = 3.14159265358979323846264338327950288419716939937510;
 
-class FR_Analyzer
+
+class FRAnalyzer
 {
 public:
-  FR_Analyzer();
-  FR_Analyzer(const int omegaLogMin, const int omegaLogMax, const double deltaOmegaLog, const double fractionalInputHalfSine,
-    const int numInitCycles, const double T, const double sig[], const int ix[], const int iy[], const int nsig, const int ntf);
-  ~FR_Analyzer(){};
+  FRAnalyzer();
+  FRAnalyzer(const int omegaLogMin, const int omegaLogMax, const double deltaOmegaLog, const int minCycles,
+    const int numInitCycles, const double wSlow, const double T, const double sig[], const int ix[], const int iy[],
+    const int nsig, const int ntf);
+  ~FRAnalyzer(){};
   // operators
   // functions
   double  calculate(void);
@@ -17,13 +19,22 @@ public:
   double  omega(void){return(omega_);};
   void    publish(void);
 private:
+  double  calculateINI_(void);
+  double  calculateRUN_(void);
+  double  calculateSET_(void);
+  void    initializeINI_(void);
+  void    initializeRUN_(void);
+  void    initializeSET_(void);
+  double  properOmega_(const double updateTime, const unsigned int numCycles, const double omegaLog, unsigned long *iTargetOmega);
+  double  runIntegrate_(void);
+  enum          Mode {WAI, SET, INI, RUN, CPT} frMode_;  // Run mode
   double 	      *a1_; 			    // Fourier series coefficient
   double 	      aint_;			    // Mantissa buffer for modf call
   double 	      *b1_;			      // Fourier series coefficient
   double 	      cosOmT_; 		    // Memory of intermediate calculation
   bool          complete_;      // If done, T/F
   double        deltaOmegaLog_; // Delta log10(frequency, r/s) in sweep
-  double        fractionalInputHalfSine_;   // Half amplitude sine wave excitation, fraction of steady state value
+  double        excite_;        // Excitation, fraction [-0.5, 0.5]
   unsigned long iOmega_;			  // Current time step number at frequency
   unsigned int  iResults_; 	    // Current number of results
   unsigned long iTargetOmega_;  // Time step target at frequency
@@ -32,7 +43,8 @@ private:
   unsigned int  *iy_;           // Indeces of outputs to TFs, corresponding ot ix_
   unsigned int  nsig_;          // Number of signals derived [from] sig[] size
   unsigned int  ntf_;           // Number of transfer functions derived from ix[] size
-  unsigned int  numInitCycles_; // Number of cycles for initialization
+  unsigned int  minCycles_;     // Minimum number of sweep cycles at each frequency
+  unsigned int  numCycles_;     // Number of cycles to run of sinusoid
   double 	      omega_; 		    // Excitation frequency, r/s
   double 	      omegaLogMax_;	  // Maximum log10(frequency, r/s), of sweep
   double 	      omegaLogMin_;	  // Minimum log10(frequency, r/s), of sweep
@@ -42,12 +54,14 @@ private:
   double 	      *sigPhas_;  	  // Signal phase, deg
   double 	      sinOmT_; 		    // Memory of intermediate calculation
   double 	      T_; 			      // Update time, sec
+  double        tau_;           // Time constant slowest expected mode, sec
   double 	      Tlog_; 			    // Log10 of update time
   double        timeTotalSweep_; // Total expected time to complete sweep, sec
   double        timeTargetOmega_;// Target time at frequency, sec
   double 	      timeAtOmega_; 	// Time at frequency point, sec
   double 	      *transGain_;   	// Transfer function gains, dB
   double	      *transPhas_; 	  // Transfer function phase, deg
+  double        wSlow_;         // Frequency of slowest expected mode, r/s
 };
 
 #endif
