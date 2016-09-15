@@ -57,9 +57,9 @@ void FRAnalyzer::initializeINI_(void)
 {
   double aint;
   modf(omegaLog_, &aint);
-  numCycles_        = fmin(fmax(minCycles_ + aint, 1), 10);
+  numCycles_        = fmax(minCycles_, int(omega_));
   omega_            = properOmega_(T_,  numCycles_, omegaLog_, &iTargetOmega_);
-  iTargetOmega_     += iTargetOmega_/numCycles_/4;  // Add 1/4 cycle to start @ -0.5
+  iTargetOmega_     += iTargetOmega_/numCycles_/4;  // Add 1/4 cycle to start @ -1
   iOmega_           = 0;
   timeTargetOmega_  = iTargetOmega_*T_;
 }
@@ -69,7 +69,7 @@ void FRAnalyzer::initializeRUN_(void)
 {
   double aint;
   modf(omegaLog_, &aint);
-  numCycles_       = fmin(fmax(minCycles_ + aint, 1), 10);
+  numCycles_       = fmax(minCycles_, int(omega_));
   omega_           = properOmega_(T_,  numCycles_, omegaLog_, &iTargetOmega_);
   iOmega_  		     = 0;
   timeTargetOmega_ = iTargetOmega_*T_;
@@ -77,7 +77,7 @@ void FRAnalyzer::initializeRUN_(void)
   // Initialize integrators
   for(int isig = 0; isig < nsig_; isig++)
   {
-    a1_[isig]    = .5 * sig_[isig];
+    a1_[isig]    = 0.;
     b1_[isig]    = 0.;
   }
 }
@@ -108,7 +108,7 @@ double FRAnalyzer::calculate()
         frMode_ = INI;
         omegaLog_ = omegaLogMin_ + (float)(iResults_) * deltaOmegaLog_;
         initializeINI_();
-        excite_ = -0.5;
+        excite_ = -1;
       }
       break;
     case INI:
@@ -160,7 +160,7 @@ double FRAnalyzer::calculate()
 double FRAnalyzer::calculateSET_(void)
 {
   timeAtOmega_  = iOmega_ * T_;
-  double xNormal = fmax(-0.5, excite_ - 0.5*T_/tau_/4);
+  double xNormal = fmax(-1, excite_ - T_/tau_/4);
   return (xNormal);
 }
 
@@ -169,7 +169,7 @@ double FRAnalyzer::calculateINI_(void)
 {
   double  xNormal;
   timeAtOmega_  = iOmega_ * T_;
-  xNormal       = 0.5*sin(omega_*(timeAtOmega_-2*pi/omega_/4));
+  xNormal       = sin(omega_*(timeAtOmega_-2*pi/omega_/4));
   return(xNormal);
 }
 
@@ -180,7 +180,7 @@ double FRAnalyzer::calculateRUN_(void)
   // Update Fourier Series integrals.
   runIntegrate_();
   timeAtOmega_  = iOmega_ * T_;
-  xNormal       = 0.5*sin(omega_*timeAtOmega_);
+  xNormal       = sin(omega_*timeAtOmega_);
   return(xNormal);
 }
 
@@ -201,14 +201,13 @@ double FRAnalyzer::runIntegrate_(void)
     iResults_++;
     for(int isig = 0; isig < nsig_; isig++)
     {
-      a1_[isig]    = (a1_[isig] - .5 * sig_[isig]) * T_ *
-                          omega_ / pi / numCycles_;
+      a1_[isig]    = a1_[isig] * T_ * omega_ / pi / numCycles_;
       b1_[isig]    = b1_[isig] * T_ * omega_ / pi / numCycles_;
     }
     // Compute signal mag and phase.
     for(int isig = 0; isig < nsig_; isig++)
     {
-      sigGain_[isig]    = 20. * log10(sqrt(a1_[isig]*a1_[isig] + b1_[isig]*b1_[isig]));
+      sigGain_[isig]    = 20. * log10( sqrt(a1_[isig]*a1_[isig] + b1_[isig]*b1_[isig]) );
       sigPhas_[isig]    = 180. / pi * atan2(a1_[isig], b1_[isig]);
     }
       // Compute transfer function mag and phase and print results.
