@@ -49,3 +49,24 @@ Temporary Items
 myESC-Particle-DEV/saves/~$calibration20160913.xlsx
 myESC-Particle-DEV/saves/~$frFan_20160926_10uFcap.xlsx
 myESC-Particle-DEV/saves/~$frFan_90160915a.xlsx
+myESC-arduino-1.6.12/arduino-builder.exe
+myESC-arduino-1.6.12/arduino.exe
+myESC-arduino-1.6.12/arduino.l4j.ini
+myESC-arduino-1.6.12/arduino_debug.exe
+myESC-arduino-1.6.12/arduino_debug.l4j.ini
+myESC-arduino-1.6.12/drivers/amd64/libusb0.dll
+myESC-arduino-1.6.12/drivers/amd64/libusb0.sys
+myESC-arduino-1.6.12/drivers/arduino-org.cat
+myESC-arduino-1.6.12/drivers/arduino-org.inf
+*.cat
+*.inf
+*.exe
+*.dll
+*.lib
+*.sys
+myESC-arduino-1.6.12/drivers/FTDI USB Drivers/ftd2xx.h
+myESC-arduino-1.6.12/drivers/FTDI USB Drivers/LogoVerificationReport.pdf
+myESC-arduino-1.6.12/drivers/Old_Arduino_Drivers.zip
+myESC-arduino-1.6.12/drivers/README.txt
+myESC-arduino-1.6.12/drivers/license/libusb0/installer_license.txt
+myESC-arduino-1.6.12/examples/01.Basics/AnalogReadSerial/AnalogReadSerial.ino
