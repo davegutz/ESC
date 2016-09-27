@@ -55,8 +55,8 @@ SYSTEM_THREAD(ENABLED);       // Make sure heat system code always run regardles
 //
 // Disable flags if needed.  Usually commented
 // #define DISABLE
-//#define BARE_PHOTON                       // Run bare photon for testing.  Bare photon without this goes dark or hangs trying to write to I2C
-#define FREQ_RESPONSE                      // Use pot to set throttle.  Frequency response disturbance on throttle, both to model and hardware
+//#define BARE_PHOTON                       // Run bare photon for testing
+//#define FREQ_RESPONSE                      // Use pot to set throttle.  Frequency response disturbance on throttle, both to model and hardware
 //
 // Usually defined
 // #define USUALLY
