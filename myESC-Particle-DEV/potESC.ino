@@ -60,7 +60,7 @@ Connections for Arduino:
 
   Revision history:
     31-Aug-2016   DA Gutz   Created
-    13-Sep-2016   DA Gutz   Initial frequencyResponse
+    13-Sep-2016   DA Gutz   Initial analyzing
 
   Distributed as-is; no warranty is given.
 */
@@ -85,12 +85,11 @@ Connections for Arduino:
 // Disable flags if needed.  Usually commented
 // #define DISABLE
 //#define BARE_PHOTON                       // Run bare photon for testing.  Bare photon without this goes dark or hangs trying to write to I2C
-//#define FREQ_RESPONSE                      // Use pot to set throttle.  Frequency response disturbance on throttle, both to model and hardware
 
-//
-// Usually defined
-// #define USUALLY
-//
+// Test features
+extern  const int   verbose         = 2;    // Debug, as much as you can tolerate
+const         bool  freqResp        = false;  // Perform frequency response test on boot
+
 // Constants always defined
 // #define CONSTANT
 #ifndef ARDUINO  // Photon
@@ -98,6 +97,7 @@ Connections for Arduino:
   #define POT_PIN          A0                 // Potentiometer input pin on Photon (A0)
   #define EMF_PIN          A2                 // Fan speed back-emf input pin on Photon (A2)
   #define LED_PIN          D7                 // Status LED
+  #define CL_PIN           D0                 // Ground to close loop (D0)
 #else
   #define PWM_PIN          5                  // PWM output (PD5)
   #define POT_PIN          A0                 // Potentiometer input pin on Photon (PC0)
@@ -150,9 +150,6 @@ double              fn[3]           = {0, 0, 0}; // Functions to analyze
 const int           ix[2]           = {0, 0}; // Indeces of fn to excitations
 const int           iy[2]           = {1, 2}; // Indeces of fn to responses
 
-// Externals
-extern  const int   verbose         = 2;    // Debug, as much as you can tolerate
-
 
 void setup()
 {
@@ -164,7 +161,7 @@ void setup()
   pinMode(POT_PIN, INPUT);
   pinMode(EMF_PIN, INPUT);
   pinMode(LED_PIN, OUTPUT);
-
+  pinMode(CL_PIN,  INPUT_PULLDOWN);
   // Lag filter
   throttleFilter  = new LagTustin(float(CONTROL_DELAY)/1000000.0, tau,  -0.1, 0.1);
   modelFilter1    = new LagTustin(float(CONTROL_DELAY)/1000000.0, tau1, -0.1, 0.1);
@@ -214,13 +211,14 @@ void setup()
 }
 
 void loop() {
+  bool                    closingLoop = false;// Closing loop by pin cmd, T/F
   bool                    control;            // Control sequence, T/F
   bool                    filter;             // Filter for temperature, T/F
   bool                    publish;            // Publish, T/F
   bool                    read;               // Read, T/F
   bool                    ttl;                // TTL model processing, T/F
   bool                    checkPot;           // Display to LED, T/F
-  bool                    frequencyResponse;  // Begin frequencyResponse, T/F
+  bool                    analyzing;          // Begin analyzing, T/F
   unsigned long           now = micros();     // Keep track of time
   static unsigned long    start        = 0UL; // Time to start looping, micros
   double                  elapsedTime;        // elapsed time, micros
@@ -231,7 +229,7 @@ void loop() {
   static unsigned long    lastPublish  = 0UL; // Last publish time, micros
   static unsigned long    lastRead     = 0UL; // Last read time, micros
   static unsigned long    lastTTL      = 0UL; // Last TTL time, micros
-  static unsigned long    lastFR       = 0UL; // Last frequencyResponse, micros
+  static unsigned long    lastFR       = 0UL; // Last analyzing, micros
   static double           modPcng      = 0;   // Modeled pcng ref after esc ttl delay, %Nf
   static double           pcnfRef      = 0;   // Fan speed closed loop reference, %Nf
   static int              RESET        = 1;   // Dynamic reset
@@ -242,6 +240,8 @@ void loop() {
   // Executive
   if ( start == 0UL ) start = now;
   elapsedTime  = double(now - start)*1e-6;
+
+  closingLoop =   digitalRead(CL_PIN) == HIGH;
 
   publish   = ((now-lastPublish) >= PUBLISH_DELAY);
   if ( publish ) lastPublish  = now;
@@ -264,12 +264,11 @@ void loop() {
 #endif
     lastFilter    = now;
   }
-#ifdef FREQ_RESPONSE
-  frequencyResponse = ( (now-lastFR) >= FR_DELAY && !analyzer->complete() );
-#else
-  frequencyResponse = false;
-#endif
-  if ( frequencyResponse )
+  if ( freqResp )
+    analyzing = ( (now-lastFR) >= FR_DELAY && !analyzer->complete() );
+  else
+    analyzing = false;
+  if ( analyzing )
   {
     digitalWrite(LED_PIN,  1);
   }
@@ -296,6 +295,7 @@ void loop() {
     fn[2]    = pcnf;
   }
 
+  // Control law
   if ( filter )
   {
 #ifndef ARDUINO
@@ -309,32 +309,50 @@ void loop() {
     // Control law
     e    = pcnfRef - pcnf;
     eM   = pcnfRef - model2b;
+    if ( !closingLoop ) intState = throttle_filt;
     intState    = fmax(fmin(intState  + Ki*e*updateTime,  145.0), -145.0);
     throttleCL  = fmax(fmin(intState +  fmax(fmin(Kp*e,   145.0), -145.0), 115.0), 0.0);
     intStateM   = fmax(fmin(intStateM + Ki*eM*updateTime, 145.0), -145.0);
     throttleCLM = fmax(fmin(intStateM + fmax(fmin(Kp*eM,  145.0), -145.0), 115.0), 0.0);
-#ifndef FREQ_RESPONSE
-    fn[0]     = throttleCL;
-#else
-    fn[0]     = throttle_filt*(1+exciter/20);
-#endif
+    if ( freqResp )
+    {
+      fn[0]     = throttle_filt*(1+exciter/20);
+    }
+    else
+    {
+      if ( closingLoop )
+      {
+        fn[0]     = throttleCL;
+      }
+      else
+      {
+        fn[0]     = throttle_filt;
+      }
+    }
   }
-#ifndef FREQ_RESPONSE
-  if ( ttl ) modPcng = fmax((AMDL*throttleCLM + BMDL)*throttleCLM + CMDL, 0.0);
-#else
-  if ( ttl ) modPcng = fmax((AMDL*fn[0] + BMDL)*fn[0] + CMDL, 0.0);
-#endif
+
+  // DC model value
+  if ( freqResp )
+  {
+    if ( ttl ) modPcng = fmax((AMDL*fn[0] + BMDL)*fn[0] + CMDL, 0.0);
+  }
+  else
+  {
+    if ( ttl ) modPcng = fmax((AMDL*throttleCLM + BMDL)*throttleCLM + CMDL, 0.0);
+  }
+
+  // Filters
   if ( filter )
   {
     model1         = modelFilter1->calculate( modPcng, RESET, tFilter);
     model2a        = modelFilter2g->calculate(model1,  RESET, tFilter);
     model2b        = modelFilter2f->calculate(model2a, RESET, tFilter);
-    if ( frequencyResponse ) exciter = analyzer->calculate();  // use previous exciter for everything
+    if ( analyzing ) exciter = analyzer->calculate();  // use previous exciter for everything
     fn[1]          = model2b;
     RESET          = 0;
   }
 
-
+  // DAC
   unsigned long deltaT = now - lastControl;
   control = (deltaT >= CONTROL_DELAY-CLOCK_TCK/2 );
   if ( control  )
@@ -347,32 +365,35 @@ void loop() {
 
   if ( publish )
   {
-#ifdef FREQ_RESPONSE
-#ifndef ARDUINO
-    if (verbose>1) Serial.printf("tim=%10.6f, ref=%6.4f, exc=%6.4f, ser=%4.2f, mod=%4.2f, nf=%4.2f, T=%8.6f, ",
-#else
-    if (verbose>1) sprintf(buffer, "tim=%10.6f, ref=%6.4f, exc=%6.4f, ser=%4.2f, mod=%4.2f, nf=%4.2f, T=%8.6f, ",
-    Serial.print(buffer);
-#endif
-    elapsedTime, pcnfRef, exciter, fn[0], fn[1], fn[2], updateTime);
-    if( !analyzer->complete() )
+    if ( freqResp )
     {
-      analyzer->publish();
-    }
-#else
 #ifndef ARDUINO
-    if (verbose>1) Serial.printf("tim=%10.6f, ref=%6.4f, nf=%4.2f, e=%4.2f, s=%4.2f, ser=%4.2f, :::: ref=%4.2f, nfM=%4.2f, eM=%4.2f, sM=%4.2f, serM=%4.2f, ttl=%ld, modPcng=%4.2f, ",
-      elapsedTime, pcnfRef, pcnf, e, intState, throttleCL, pcnfRef, model2b, eM, intStateM, throttleCLM, ttl, modPcng);
+      if (verbose>1) Serial.printf("tim=%10.6f, ref=%6.4f, exc=%6.4f, ser=%4.2f, mod=%4.2f, nf=%4.2f, T=%8.6f, ",
 #else
-    if (verbose>1) sprintf(buffer, "tim=%10.6f, ref=%6.4f, exc=%6.4f, ser=%4.2f, mod=%4.2f, nf=%4.2f, T=%8.6f, ",
-      elapsedTime, pcnfRef, pcnf, e, intState, throttleCL, pcnfRef, model2b, eM, intStateM, throttleCLM, ttl, modPcng);
-    Serial.print(buffer);
+      if (verbose>1) sprintf(buffer, "tim=%10.6f, ref=%6.4f, exc=%6.4f, ser=%4.2f, mod=%4.2f, nf=%4.2f, T=%8.6f, ",
+      Serial.print(buffer);
 #endif
+      elapsedTime, pcnfRef, exciter, fn[0], fn[1], fn[2], updateTime);
+      if( !analyzer->complete() )
+      {
+        analyzer->publish();
+      }
+    }  // freqResp
+    else
+    {
+#ifndef ARDUINO
+      if (verbose>1) Serial.printf("tim=%10.6f, cl=%ld, ref=%6.4f, nf=%4.2f, e=%4.2f, s=%4.2f, ser=%4.2f, :::: ref=%4.2f, nfM=%4.2f, eM=%4.2f, sM=%4.2f, serM=%4.2f, ttl=%ld, modPcng=%4.2f, ",
+        elapsedTime, closingLoop, pcnfRef, pcnf, e, intState, throttleCL, pcnfRef, model2b, eM, intStateM, throttleCLM, ttl, modPcng);
+#else
+      if (verbose>1) sprintf(buffer, "tim=%10.6f, cl=%ld,  ref=%6.4f, exc=%6.4f, ser=%4.2f, mod=%4.2f, nf=%4.2f, T=%8.6f, ",
+        elapsedTime, closingLoop, pcnfRef, pcnf, e, intState, throttleCL, pcnfRef, model2b, eM, intStateM, throttleCLM, ttl, modPcng);
+        Serial.print(buffer);
 #endif
+    }
 #ifndef ARDUINO
     Serial.printf("\n");
 #else
     Serial.println("");
 #endif
-  }
+  }  // publish
 }
