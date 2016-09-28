@@ -2,7 +2,7 @@
 Controlling a servo position using a potentiometer (variable resistor)
 by Dave Gutz
 
-    Connections:
+    Connections for Photon:
       ESC ------------------- Photon
         BLK ------------------- GND
         WHT ------------------- PWM Output (A4)
@@ -15,6 +15,7 @@ by Dave Gutz
         VHI ------------------VIN
         VLO ------------------GND
         WIPE -----------------Analog In A0
+      LED to indicate frequency response----Digital Output (D7)
       Hardware Platform:
         Microcontroller:  Particle Photon
         ESC:Hitec Energy Rotor 18A, 2-4S LiPo
@@ -23,6 +24,31 @@ by Dave Gutz
         Motor:  Hobby King 50mm Alloy EDF 4800 Kv (3s Version)
         F2V:  Texas Instruments 926-LM2907N/NOPB (14 pin, no Zener)
 
+
+    Connections for Arduino:
+      ESC ------------------- Photon
+        BLK ------------------- GND
+        WHT ------------------- PWM Output (5)
+      ESC----------------- 3-wire DC Servomotor (stepper)
+        Any three to any three
+      EMF-------------------Photon
+        V5/V10----------------Analog In A2
+        GND-------------------GND
+      POT---------------------Photon
+        VHI ------------------VIN
+        VLO ------------------GND
+        WIPE -----------------Analog In A0
+      LED to indicate frequency response----Digital Output (7)
+      Hardware Platform:
+        Microcontroller:  Particle Photon
+        ESC:Hitec Energy Rotor 18A, 2-4S LiPo
+        Power Supply:  BINZET AC 100-240V to DC 12V 10A
+        Potentiometer:  Mouser 314-1410F-10K-3  10K Linear Pot
+        Motor:  Hobby King 50mm Alloy EDF 4800 Kv (3s Version)
+        F2V:  Texas Instruments 926-LM2907N/NOPB (14 pin, no Zener)
+
+
+  
   Reaquirements:
   Prime:
   1.  Manually sweep ESC command from min to max using pot.
@@ -69,15 +95,15 @@ by Dave Gutz
 //
 // Constants always defined
 // #define CONSTANT
-#ifndef ARDUINO
+#ifndef ARDUINO  // Photon
   #define PWM_PIN          A4                 // PWM output (A4)
   #define POT_PIN          A0                 // Potentiometer input pin on Photon (A0)
   #define EMF_PIN          A2                 // Fan speed back-emf input pin on Photon (A2)
   #define LED_PIN          D7                 // Status LED
 #else
   #define PWM_PIN          5                  // PWM output (PD5)
-  #define POT_PIN          0                  // Potentiometer input pin on Photon (PC0)
-  #define EMF_PIN          2                  // Fan speed back-emf input pin on Photon (PC2)
+  #define POT_PIN          A0                 // Potentiometer input pin on Photon (PC0)
+  #define EMF_PIN          A2                 // Fan speed back-emf input pin on Photon (PC2)
   #define LED_PIN          7                  // Status LED (OD7)
 #endif
 #define FR_DELAY         40000000UL         // Time to start FR, micros
@@ -127,7 +153,7 @@ const int           ix[2]           = {0, 0}; // Indeces of fn to excitations
 const int           iy[2]           = {1, 2}; // Indeces of fn to responses
 
 // Externals
-extern  int         verbose         = 2;    // Debug, as much as you can tolerate
+extern  const int   verbose         = 2;    // Debug, as much as you can tolerate
 
 
 void setup()
