@@ -39,6 +39,7 @@ Connections for Arduino:
     VLO ------------------GND
     WIPE -----------------Analog In A0
   LED to indicate frequency response----Digital Output (7)
+  JUMPER---------------4 to GND for Closed Loop
   Hardware Platform:
     Microcontroller:  Particle Photon
     ESC:Hitec Energy Rotor 18A, 2-4S LiPo
@@ -76,6 +77,7 @@ Connections for Arduino:
   SYSTEM_THREAD(ENABLED);       // Make sure heat system code always run regardless of network status
 #else
   #include <Servo.h>
+  #include <Print.h>
 #endif
 #include "math.h"
 #include "analyzer.h"
@@ -84,11 +86,11 @@ Connections for Arduino:
 //
 // Disable flags if needed.  Usually commented
 // #define DISABLE
-//#define BARE_PHOTON                       // Run bare photon for testing.  Bare photon without this goes dark or hangs trying to write to I2C
+#define BARE_PHOTON                       // Run bare photon for testing.  Bare photon without this goes dark or hangs trying to write to I2C
 
 // Test features
 extern  const int   verbose         = 2;    // Debug, as much as you can tolerate
-const         bool  freqResp        = false;  // Perform frequency response test on boot
+const         bool  freqResp        = true;  // Perform frequency response test on boot
 
 // Constants always defined
 // #define CONSTANT
@@ -98,24 +100,21 @@ const         bool  freqResp        = false;  // Perform frequency response test
   #define EMF_PIN          A2                 // Fan speed back-emf input pin on Photon (A2)
   #define LED_PIN          D7                 // Status LED
   #define CL_PIN           D0                 // 3.3v to close loop (D0)
+  #define FR_DELAY         40000000UL         // Time to start FR, micros
+  #define CLOCK_TCK        8UL                // Clock tick resolution, micros
+  #define PUBLISH_DELAY    40000UL            // Time between cloud updates (), micros
+  #define CONTROL_DELAY    1000UL             // Control law wait (), micros
 #else
   #define PWM_PIN          5                  // PWM output (PD5)
   #define POT_PIN          A0                 // Potentiometer input pin on Photon (PC0)
   #define EMF_PIN          A2                 // Fan speed back-emf input pin on Photon (PC2)
   #define LED_PIN          7                  // Status LED (OD7)
-  #define CL_PIN           4                  // 3.3v to close loop (D4)
+  #define CL_PIN           4                  // GND to close loop (D4 to GND)
+  #define FR_DELAY         40000000UL         // Time to start FR, micros
+  #define CLOCK_TCK        16UL               // Clock tick resolution, micros
+  #define PUBLISH_DELAY    60000UL            // Time between cloud updates (), micros
+  #define CONTROL_DELAY    15000UL            // Control law wait (), micros
 #endif
-#define FR_DELAY         40000000UL         // Time to start FR, micros
-#define CLOCK_TCK        8UL                // Clock tick resolution, micros
-#define PUBLISH_DELAY    40000UL            // Time between cloud updates (), micros
-#define CONTROL_DELAY    1000UL             // Control law wait (), micros
-#define ESC_DELAY        20000UL            // TTL hold (20ms), micros
-#define AEMF             -1.9058            // Curve fit to LM2907 circuit, %Nf/volt^2
-#define BEMF             16.345             // Curve fit to LM2907 circuit, %Nf/volts
-#define CEMF             -2.14              // Curve fit to LM2907 circuit, %Nf
-#define AMDL             -0.0028            // Curve fit to fan, %/deg^2
-#define BMDL             0.8952             // Curve fit to fan, %/deg
-const double CMDL             =-38.0;              // Curve fit to fan, %
 
 //
 // Dependent includes.   Easier to debug code if remove unused include files
@@ -131,7 +130,12 @@ LagTustin*          modelFilter2g;            // Exponential lag filter gas gen
 LagTustin*          modelFilter2f;            // Exponential lag filter fan
 FRAnalyzer*         analyzer;                 // Frequency response analyzer
 Servo               myservo;  // create servo object to control a servo
-int                 numTimeouts     = 0;      // Number of Particle.connect() needed to unfreeze
+const double        AEMF            =-1.9058; // Curve fit to LM2907 circuit, %Nf/volt^2
+const double        BEMF            = 16.345; // Curve fit to LM2907 circuit, %Nf/volts
+const double        CEMF            =-2.14;   // Curve fit to LM2907 circuit, %Nf
+const double        AMDL            =-0.0028; // Curve fit to fan, %/deg^2
+const double        BMDL            = 0.8952; // Curve fit to fan, %/deg
+const double        CMDL            =-38.0;   // Curve fit to fan, %
 int                 potValue        = 1500;   // Dial raw value, 0-4096
 int                 emfValue        = 1000;   // Dial raw value, 0-4096
 const double        Ki              = 11.15;  // Int gain, deg/s/%Nf
@@ -157,7 +161,7 @@ void setup()
 #ifndef ARDUINO
   WiFi.disconnect();
 #endif
-  Serial.begin(9600);
+  Serial.begin(230400);
   myservo.attach(PWM_PIN);  // attaches the servo.  Only supported on pins that have PWM
   pinMode(POT_PIN, INPUT);
   pinMode(EMF_PIN, INPUT);
@@ -171,12 +175,11 @@ void setup()
   modelFilter2f   = new LagTustin(float(CONTROL_DELAY)/1000000.0, tau2, -0.1, 0.1);
   analyzer        = new FRAnalyzer(0, 3, 0.1,    2,    6, 1/tau1, double(CONTROL_DELAY/1e6), fn, ix, iy, 3, 2);
   //                               on ox   do minCy iniCy  wSlow
-
   delay(1000);
 #ifndef ARDUINO
   if (verbose>1) Serial.printf("\nCalibrating ESC...");
 #else
-  if (verbose>1) sprintf(buffer, "\nCalibrating ESC...");
+  if (verbose>1) sprintf(buffer,"\nCalibrating ESC...");
   Serial.print(buffer);
 #endif
   while (throttle<179)
@@ -197,7 +200,7 @@ void setup()
   Serial.printf("To flash code to this device, push and hold both Photon buttons, release RESET until purple observed, then release.\n");
 #else
   if (verbose>1) Serial.println("Done.");
-  Serial.println("To flash code to this device, push and hold both Photon buttons, release RESET until purple observed, then release.");
+  Serial.println("To flash code to this device, use Arduino IDE - Ctrl-R, Ctrl-U.");
 #endif
   analyzer->publish();
 #ifndef ARDUINO
@@ -209,6 +212,7 @@ void setup()
 #ifndef ARDUINO
   WiFi.off();
 #endif
+
   delay(1000);
 }
 
@@ -217,7 +221,7 @@ void loop() {
   bool                    control;            // Control sequence, T/F
   bool                    filter;             // Filter for temperature, T/F
   bool                    publish;            // Publish, T/F
-  bool                    read;               // Read, T/F
+  bool                    reading;            // Read, T/F
   bool                    ttl;                // TTL model processing, T/F
   bool                    checkPot;           // Display to LED, T/F
   bool                    analyzing;          // Begin analyzing, T/F
@@ -243,13 +247,15 @@ void loop() {
   if ( start == 0UL ) start = now;
   elapsedTime  = double(now - start)*1e-6;
 
-  closingLoop =   digitalRead(CL_PIN) == HIGH;
+  closingLoop =   digitalRead(CL_PIN) == LOW;
 
-  publish   = ((now-lastPublish) >= PUBLISH_DELAY);
-  if ( publish ) lastPublish  = now;
+  publish   = ((now-lastPublish) >= PUBLISH_DELAY-CLOCK_TCK/2 );
+  if ( publish ) {
+    lastPublish  = now;
+  }
 
-  read    = ((now-lastRead) >= CONTROL_DELAY-CLOCK_TCK/2 || RESET>0) && !publish;
-  if ( read     ) lastRead      = now;
+  reading    = ((now-lastRead) >= CONTROL_DELAY-CLOCK_TCK/2 || RESET>0);
+  if ( reading     ) lastRead      = now;
 
   ttl     = ((now-lastTTL) >= CONTROL_DELAY-CLOCK_TCK/2 || RESET>0);
   if ( ttl      ) lastTTL      = now;
@@ -258,18 +264,14 @@ void loop() {
   if ( filter )
   {
     tFilter     = float(now-lastFilter)/1000000.0;
-#ifndef ARDUINO
-    if ( verbose > 3 ) Serial.printf("Filter update=%7.3f\n", tFilter);
-#else
-    if ( verbose > 3 ) sprintf(buffer, "Filter update=%7.3f\n", tFilter);
-    Serial.print(buffer);
-#endif
     lastFilter    = now;
   }
   if ( freqResp )
     analyzing = ( (now-lastFR) >= FR_DELAY && !analyzer->complete() );
   else
     analyzing = false;
+
+  // Report that running Freq Resp
   if ( analyzing )
   {
     digitalWrite(LED_PIN,  1);
@@ -279,10 +281,9 @@ void loop() {
     digitalWrite(LED_PIN,  0);
   }
 
-  checkPot   = read;
-
   // Interrogate pot; run fast for good tactile feedback
   // my pot puts out 0- 4096 observed using Tinker
+  checkPot   = reading;
   if ( checkPot && RESET<1 )
   {
 #ifndef BARE_PHOTON
@@ -300,12 +301,6 @@ void loop() {
   // Control law
   if ( filter )
   {
-#ifndef ARDUINO
-    if ( verbose>4 ) Serial.printf("FILTER\n");
-#else
-    if ( verbose>4 ) sprintf(buffer, "FILTER\n");
-    Serial.print(buffer);
-#endif
     throttle_filt = throttleFilter->calculate(throttle,  RESET, tFilter);
     pcnfRef       = fmax(fmin(throttle_filt/115.*30.-1., 27.5), 0.);
     // Control law
@@ -354,16 +349,16 @@ void loop() {
     RESET          = 0;
   }
 
+
   // DAC
   unsigned long deltaT = now - lastControl;
   control = (deltaT >= CONTROL_DELAY-CLOCK_TCK/2 );
   if ( control  )
   {
-    updateTime    = float(deltaT)/1000000.0 + float(numTimeouts)/100000.0;
+    updateTime    = float(deltaT)/1000000.0;
     lastControl   = now;
     myservo.write(fn[0]);  // sets the servo position according to the scaled value
-}
-
+  }
 
   if ( publish )
   {
@@ -373,30 +368,33 @@ void loop() {
       if (verbose>1) Serial.printf("tim=%10.6f, ref=%6.4f, exc=%6.4f, ser=%4.2f, mod=%4.2f, nf=%4.2f, T=%8.6f, ",
         elapsedTime, pcnfRef, exciter, fn[0], fn[1], fn[2], updateTime);
 #else
-      if (verbose>1) sprintf(buffer, "tim=%10.6f, ref=%6.4f, exc=%6.4f, ser=%4.2f, mod=%4.2f, nf=%4.2f, T=%8.6f, ",
-        elapsedTime, pcnfRef, exciter, fn[0], fn[1], fn[2], updateTime);
+      if (verbose>1) sprintf(buffer, "t=%s, ref=%s, exc=%s, ser=%s, mod=%s, nf=%s, T=%s,",
+        String(elapsedTime,6).c_str(), String(pcnfRef).c_str(), String(exciter).c_str(), String(fn[0]).c_str(),
+        String(fn[1]).c_str(), String(fn[2]).c_str(), String(updateTime,6).c_str());
       Serial.print(buffer);
 #endif
       if( !analyzer->complete() )
       {
         analyzer->publish();
       }
+#ifdef ARDUINO
+      Serial.println("");
+#endif
     }  // freqResp
     else
     {
 #ifndef ARDUINO
-      if (verbose>1) Serial.printf("tim=%10.6f, cl=%ld, ref=%6.4f, nf=%4.2f, e=%4.2f, s=%4.2f, ser=%4.2f, :::: ref=%4.2f, nfM=%4.2f, eM=%4.2f, sM=%4.2f, serM=%4.2f, ttl=%ld, modPcng=%4.2f, ",
+      if (verbose>1) Serial.printf("tim=%10.6f, cl=%ld, ref=%6.4f, nf=%4.2f, e=%4.2f, s=%4.2f, ser=%4.2f, :::: ref=%4.2f, nfM=%4.2f, eM=%4.2f, sM=%4.2f, serM=%4.2f, ttl=%ld, modPcng=%4.2f,\n",
         elapsedTime, closingLoop, pcnfRef, pcnf, e, intState, throttleCL, pcnfRef, model2b, eM, intStateM, throttleCLM, ttl, modPcng);
 #else
-      if (verbose>1) sprintf(buffer, "tim=%10.6f, cl=%ld,  ref=%6.4f, exc=%6.4f, ser=%4.2f, mod=%4.2f, nf=%4.2f, T=%8.6f, ",
-        elapsedTime, closingLoop, pcnfRef, pcnf, e, intState, throttleCL, pcnfRef, model2b, eM, intStateM, throttleCLM, ttl, modPcng);
+      if (verbose>1) sprintf(buffer, "t=%s, cl=%s, ref=%s, nf=%s, e=%s, s=%s, ser=%s, :::: ref=%s, nfM=%s, eM=%s, sM=%s, serM=%s, ttl=%s, modPcng=%s, T=%s\n",
+        String(elapsedTime,6).c_str(), String(closingLoop).c_str(), String(pcnfRef).c_str(), String(pcnf).c_str(), String(e).c_str(),
+        String(intState).c_str(), String(throttleCL).c_str(), String(pcnfRef).c_str(), String(model2b).c_str(),
+        String(eM).c_str(), String(intStateM).c_str(), String(throttleCLM).c_str(), String(ttl).c_str(),
+        String(modPcng).c_str(), String(updateTime,6).c_str());
         Serial.print(buffer);
 #endif
     }
-#ifndef ARDUINO
-    Serial.printf("\n");
-#else
-    Serial.println("");
-#endif
   }  // publish
 }
+

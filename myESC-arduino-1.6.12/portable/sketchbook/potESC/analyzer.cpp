@@ -6,7 +6,6 @@
 #endif
 #include "analyzer.h"
 #include "math.h"
-extern const int verbose;
 
 //Class FRAnalyzer
 
@@ -50,7 +49,7 @@ FRAnalyzer::FRAnalyzer(const int omegaLogMin, const int omegaLogMax, const doubl
   Serial.printf("Number points = %ld, timeTotalSweep_=%5.2f", iTargetResults_, timeTotalSweep_);
 #else
   char printf[256];
-  sprintf(printf, "Number points = %ld, timeTotalSweep_=%5.2f", iTargetResults_, timeTotalSweep_);
+  sprintf(printf, "Number points = %s, timeTotalSweep_=%s", String(iTargetResults_).c_str(), String(timeTotalSweep_).c_str());
   Serial.print(printf);
 #endif
 }
@@ -227,7 +226,7 @@ double FRAnalyzer::runIntegrate_(void)
         Serial.printf("% #10.4g", omega_);
 #else
         char printf[256];
-        sprintf(printf, "% #10.4g", omega_);
+        sprintf(printf, "% s", String(omega_).c_str());
         Serial.print(printf);
 #endif
       for(int itf = 0; itf < ntf_; itf++)
@@ -238,7 +237,7 @@ double FRAnalyzer::runIntegrate_(void)
         Serial.printf(" % #10.4g % #10.4g", transGain_[itf], transPhas_[itf]);
 #else
         char printf[256];
-        sprintf(printf, " % #10.4g % #10.4g", transGain_[itf], transPhas_[itf]);
+        sprintf(printf, " %s %s", String(transGain_[itf]).c_str(), String(transPhas_[itf]).c_str());
         Serial.print(printf);
 #endif
       }
@@ -259,8 +258,10 @@ void FRAnalyzer::publish()
   frMode_, omegaLog_, numCycles_, omega_, iOmega_, iTargetOmega_, timeAtOmega_, timeTargetOmega_, iResults_, iTargetResults_);
 #else
   char printf[256];
-  sprintf(printf, "M=%ld, omegaLog=%5.3f, numCycles=%u, omega=%5.3f, iOmega=%u/%u, timeAtOmega=%5.3f/%5.3f, iResults=%u/%u",
-  frMode_, omegaLog_, numCycles_, omega_, iOmega_, iTargetOmega_, timeAtOmega_, timeTargetOmega_, iResults_, iTargetResults_);
+  sprintf(printf, "M=%s, omegaLog=%s, numCycles=%s, omega=%s, iOmega=%s/%s, timeAtOmega=%s/%s, iResults=%s/%s",
+  String(frMode_).c_str(), String(omegaLog_).c_str(), String(numCycles_).c_str(), String(omega_).c_str(),
+  String(iOmega_).c_str(), String(iTargetOmega_).c_str(), String(timeAtOmega_).c_str(), String(timeTargetOmega_).c_str(),
+  String(iResults_).c_str(), String(iTargetResults_).c_str());
   Serial.print(printf);
 #endif
 }
