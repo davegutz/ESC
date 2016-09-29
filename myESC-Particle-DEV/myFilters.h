@@ -31,6 +31,27 @@ protected:
 };
 
 // Tustin rate-lag rate calculator, non-pre-warped, no limits, fixed update rate
+class LeadLagTustin: public DiscreteFilter
+{
+public:
+  LeadLagTustin();
+  LeadLagTustin(const double T, const double tau, const double min, const double max);
+//  LeadLagTustin(const LeadLagTustin & RLT);
+  ~LeadLagTustin();
+  //operators
+  //functions
+  virtual double  calculate(double in, int RESET);
+  virtual void    assignCoeff(double tld, double tau);
+  virtual void    rateState(double in);
+  virtual double  state(void);
+protected:
+  double a_;
+  double b_;
+  double state_;
+  double tld_;
+};
+
+// Tustin rate-lag rate calculator, non-pre-warped, no limits, fixed update rate
 class RateLagTustin: public DiscreteFilter
 {
 public:
