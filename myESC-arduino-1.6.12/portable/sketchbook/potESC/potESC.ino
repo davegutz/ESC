@@ -8,7 +8,7 @@ Connections for Photon:
     WHT ------------------- PWM Output (A4)
   ESC----------------- 3-wire DC Servomotor (stepper)
     Any three to any three
-  EMF-------------------Photon
+  EMF F2V-----------------Photon
     V5/V10----------------Analog In A2
     GND-------------------GND
   POT---------------------Photon
@@ -22,16 +22,16 @@ Connections for Photon:
     Power Supply:  BINZET AC 100-240V to DC 12V 10A
     Potentiometer:  Mouser 314-1410F-10K-3  10K Linear Pot
     Motor:  Hobby King 50mm Alloy EDF 4800 Kv (3s Version)
-    F2V:  Texas Instruments 926-LM2907N/NOPB (14 pin, no Zener)
+    EMF F2V:  Texas Instruments 926-LM2907N/NOPB (14 pin, no Zener)
 
 
 Connections for Arduino:
-  ESC ------------------- Photon
+  ESC ------------------- Arduino
     BLK ------------------- GND
     WHT ------------------- PWM Output (5)
   ESC----------------- 3-wire DC Servomotor (stepper)
     Any three to any three
-  EMF-------------------Photon
+  EMF F2V-----------------Arduino
     V5/V10----------------Analog In A2
     GND-------------------GND
   POT---------------------Photon
@@ -41,12 +41,12 @@ Connections for Arduino:
   LED to indicate frequency response----Digital Output (7)
   JUMPER---------------4 to GND for Closed Loop
   Hardware Platform:
-    Microcontroller:  Particle Photon
+    Microcontroller:  Arduino Uno R3
     ESC:Hitec Energy Rotor 18A, 2-4S LiPo
     Power Supply:  BINZET AC 100-240V to DC 12V 10A
     Potentiometer:  Mouser 314-1410F-10K-3  10K Linear Pot
     Motor:  Hobby King 50mm Alloy EDF 4800 Kv (3s Version)
-    F2V:  Texas Instruments 926-LM2907N/NOPB (14 pin, no Zener)
+    EMF F2V:  Texas Instruments 926-LM2907N/NOPB (14 pin, no Zener)
 
   Reaquirements:
   Prime:
@@ -86,11 +86,11 @@ Connections for Arduino:
 //
 // Disable flags if needed.  Usually commented
 // #define DISABLE
-#define BARE_PHOTON                       // Run bare photon for testing.  Bare photon without this goes dark or hangs trying to write to I2C
+//#define BARE_PHOTON                       // Run bare photon for testing.  Bare photon without this goes dark or hangs trying to write to I2C
 
 // Test features
 extern  const int   verbose         = 2;    // Debug, as much as you can tolerate
-const         bool  freqResp        = true;  // Perform frequency response test on boot
+const         bool  freqResp        = false;  // Perform frequency response test on boot
 
 // Constants always defined
 // #define CONSTANT
@@ -104,6 +104,7 @@ const         bool  freqResp        = true;  // Perform frequency response test 
   #define CLOCK_TCK        8UL                // Clock tick resolution, micros
   #define PUBLISH_DELAY    40000UL            // Time between cloud updates (), micros
   #define CONTROL_DELAY    1000UL             // Control law wait (), micros
+  #define INSCALE          4096.0             // Input full range from OS
 #else
   #define PWM_PIN          5                  // PWM output (PD5)
   #define POT_PIN          A0                 // Potentiometer input pin on Photon (PC0)
@@ -114,6 +115,7 @@ const         bool  freqResp        = true;  // Perform frequency response test 
   #define CLOCK_TCK        16UL               // Clock tick resolution, micros
   #define PUBLISH_DELAY    60000UL            // Time between cloud updates (), micros
   #define CONTROL_DELAY    15000UL            // Control law wait (), micros
+  #define INSCALE          1023.0             // Input full range from OS
 #endif
 
 //
@@ -138,8 +140,17 @@ const double        BMDL            = 0.8952; // Curve fit to fan, %/deg
 const double        CMDL            =-38.0;   // Curve fit to fan, %
 int                 potValue        = 1500;   // Dial raw value, 0-4096
 int                 emfValue        = 1000;   // Dial raw value, 0-4096
+#ifndef ARDUINO
 const double        Ki              = 11.15;  // Int gain, deg/s/%Nf
 const double        Kp              = 3.0;    // Prop gain, deg/%Nf
+const double        KiM             = 11.15;  // Int gain, deg/s/%Nf
+const double        KpM             = 3.0;    // Prop gain, deg/%Nf
+#else
+const double        Ki              = 10.10;  // Int gain, deg/s/%Nf
+const double        Kp              = 2.61;   // Prop gain, deg/%Nf
+const double        KiM             = 9.69;   // Int gain, deg/s/%Nf
+const double        KpM             = 2.52;   // Prop gain, deg/%Nf
+#endif
 double              model1          = 0;      // Model lag 1 output, %Ng
 double              model2a         = 0;      // Model lag 2 output, %Ng
 double              model2b         = 0;      // Model lag 2 output, %Nf
@@ -289,12 +300,12 @@ void loop() {
 #ifndef BARE_PHOTON
     potValue = analogRead(POT_PIN);
     emfValue = analogRead(EMF_PIN);
-    vemf     = double(emfValue)/4096.0*3.3;
+    vemf     = double(emfValue)/INSCALE*3.3;
     pcnf     = fmax(AEMF*vemf*vemf + BEMF*vemf + CEMF, 0.0);
 #else
     pcnf     = model2b;
 #endif
-    throttle = fmin(double(potValue)/4096.0*115.0, 115);
+    throttle = fmin(double(potValue)/INSCALE*115.0, 115);
     fn[2]    = pcnf;
   }
 
@@ -307,10 +318,10 @@ void loop() {
     e    = pcnfRef - pcnf;
     eM   = pcnfRef - model2b;
     if ( !closingLoop ) intState = throttle_filt;
-    intState    = fmax(fmin(intState  + Ki*e*updateTime,  145.0), -145.0);
-    throttleCL  = fmax(fmin(intState +  fmax(fmin(Kp*e,   145.0), -145.0), 115.0), 0.0);
-    intStateM   = fmax(fmin(intStateM + Ki*eM*updateTime, 145.0), -145.0);
-    throttleCLM = fmax(fmin(intStateM + fmax(fmin(Kp*eM,  145.0), -145.0), 115.0), 0.0);
+    intState    = fmax(fmin(intState  + Ki*e*updateTime,   145.0), -145.0);
+    throttleCL  = fmax(fmin(intState  + fmax(fmin(Kp*e,    145.0), -145.0), 115.0), 0.0);
+    intStateM   = fmax(fmin(intStateM + KiM*eM*updateTime, 145.0), -145.0);
+    throttleCLM = fmax(fmin(intStateM + fmax(fmin(KpM*eM,  145.0), -145.0), 115.0), 0.0);
     if ( freqResp )
     {
       fn[0]     = throttle_filt*(1+exciter/20);
@@ -397,4 +408,5 @@ void loop() {
     }
   }  // publish
 }
+
 
