@@ -97,12 +97,13 @@ const         bool  freqResp        = false;  // Perform frequency response test
   #define POT_PIN          A0                 // Potentiometer input pin on Photon (A0)
   #define EMF_PIN          A2                 // Fan speed back-emf input pin on Photon (A2)
   #define LED_PIN          D7                 // Status LED
-  #define CL_PIN           D0                 // Ground to close loop (D0)
+  #define CL_PIN           D0                 // 3.3v to close loop (D0)
 #else
   #define PWM_PIN          5                  // PWM output (PD5)
   #define POT_PIN          A0                 // Potentiometer input pin on Photon (PC0)
   #define EMF_PIN          A2                 // Fan speed back-emf input pin on Photon (PC2)
   #define LED_PIN          7                  // Status LED (OD7)
+  #define CL_PIN           4                  // 3.3v to close loop (D4)
 #endif
 #define FR_DELAY         40000000UL         // Time to start FR, micros
 #define CLOCK_TCK        8UL                // Clock tick resolution, micros
@@ -161,7 +162,8 @@ void setup()
   pinMode(POT_PIN, INPUT);
   pinMode(EMF_PIN, INPUT);
   pinMode(LED_PIN, OUTPUT);
-  pinMode(CL_PIN,  INPUT_PULLDOWN);
+  pinMode(CL_PIN,  INPUT);
+
   // Lag filter
   throttleFilter  = new LagTustin(float(CONTROL_DELAY)/1000000.0, tau,  -0.1, 0.1);
   modelFilter1    = new LagTustin(float(CONTROL_DELAY)/1000000.0, tau1, -0.1, 0.1);
@@ -369,11 +371,12 @@ void loop() {
     {
 #ifndef ARDUINO
       if (verbose>1) Serial.printf("tim=%10.6f, ref=%6.4f, exc=%6.4f, ser=%4.2f, mod=%4.2f, nf=%4.2f, T=%8.6f, ",
+        elapsedTime, pcnfRef, exciter, fn[0], fn[1], fn[2], updateTime);
 #else
       if (verbose>1) sprintf(buffer, "tim=%10.6f, ref=%6.4f, exc=%6.4f, ser=%4.2f, mod=%4.2f, nf=%4.2f, T=%8.6f, ",
+        elapsedTime, pcnfRef, exciter, fn[0], fn[1], fn[2], updateTime);
       Serial.print(buffer);
 #endif
-      elapsedTime, pcnfRef, exciter, fn[0], fn[1], fn[2], updateTime);
       if( !analyzer->complete() )
       {
         analyzer->publish();
