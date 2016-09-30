@@ -4,6 +4,7 @@
   Class code for embedded application.
 
   07-Jan-2015   Dave Gutz   Created
+  30-Sep-2016   Dave Gutz   LeadLagTustin
  ****************************************************/
 
 #ifndef _myFilters_H
@@ -21,6 +22,7 @@ public:
   virtual double  calculate(double in, int RESET);
   virtual void    assignCoeff(double tau);
   virtual void    rateState(double in);
+  virtual double  rateStateCalc(double in);
   virtual double  state(void);
 protected:
   double max_;
@@ -35,14 +37,17 @@ class LeadLagTustin: public DiscreteFilter
 {
 public:
   LeadLagTustin();
-  LeadLagTustin(const double T, const double tau, const double min, const double max);
+  LeadLagTustin(const double T, const double tld, const double tau, const double min, const double max);
 //  LeadLagTustin(const LeadLagTustin & RLT);
   ~LeadLagTustin();
   //operators
   //functions
-  virtual double  calculate(double in, int RESET);
-  virtual void    assignCoeff(double tld, double tau);
-  virtual void    rateState(double in);
+  virtual double  calculate(const double in, const int RESET);
+  virtual double  calculate(const double in, const int RESET, const double T);
+  virtual void    assignCoeff(const double tld, const double tau, const double T);
+//  virtual void    rateState(const double in);
+  virtual double  rateStateCalc(const double in);
+  virtual double  rateStateCalc(const double in, const double T);
   virtual double  state(void);
 protected:
   double a_;
@@ -128,3 +133,4 @@ protected:
 };
 
 #endif
+

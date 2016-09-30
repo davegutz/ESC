@@ -62,6 +62,7 @@ Connections for Arduino:
   Revision history:
     31-Aug-2016   DA Gutz   Created
     13-Sep-2016   DA Gutz   Initial analyzing
+    30-Sep-2016   DA Gutz   Arduino added
 
   Distributed as-is; no warranty is given.
 */
@@ -126,10 +127,11 @@ const         bool  freqResp        = false;  // Perform frequency response test
 #ifdef ARDUINO
   char buffer[256];
 #endif
-LagTustin*          throttleFilter;           // Exponential lag filter
-LagTustin*          modelFilter1;             // Exponential lag filter esc
-LagTustin*          modelFilter2g;            // Exponential lag filter gas gen
-LagTustin*          modelFilter2f;            // Exponential lag filter fan
+LagTustin*          throttleFilter;           // Tustin lag filter
+LeadLagTustin*      modelFilterE;             // Tustin lead lag filter esc
+LagTustin*          modelFilterG;             // Tustin lag filter gas gen
+LagTustin*          modelFilterF;             // Tustin lag filter fan
+LagTustin*          modelFilterV;             // Tustin lag filter F2V sensor
 FRAnalyzer*         analyzer;                 // Frequency response analyzer
 Servo               myservo;  // create servo object to control a servo
 const double        AEMF            =-1.9058; // Curve fit to LM2907 circuit, %Nf/volt^2
@@ -151,13 +153,17 @@ const double        Kp              = 2.61;   // Prop gain, deg/%Nf
 const double        KiM             = 9.69;   // Int gain, deg/s/%Nf
 const double        KpM             = 2.52;   // Prop gain, deg/%Nf
 #endif
-double              model1          = 0;      // Model lag 1 output, %Ng
-double              model2a         = 0;      // Model lag 2 output, %Ng
-double              model2b         = 0;      // Model lag 2 output, %Nf
+double              modelE          = 0;      // Model ESC output, %Ng
+double              modelG          = 0;      // Model Gas Generator output, %Ng
+double              modelF          = 0;      // Model Fan, %Nf
+double              modelFS         = 0;      // Model Fan Sensed, %Nf
 double              pcnf            = 0;      // Fan speed, % of 57600 rpm
 const  double       tau             = 0.10;   // Input noise filter time constant, sec
-const  double       tau1            = 0.05;   // Model time constant, sec
-const  double       tau2            = 0.11;   // Model time constant, sec
+const  double       tldE            = 0.05;   // Model ESC lead time constant, sec
+const  double       tauE            = 0.01;   // Model ESC lag time constant, sec
+const  double       tauV            = 0.07;   // Model F2V time constant, sec
+const  double       tauG            = 0.13;   // Model Gas Generator time constant, sec
+const  double       tauF            = 0.13;   // Model Fan time constant, sec
 double              throttle        = 0;      // Pot value, 0-179 degrees
 double              throttle_filt   = 0;      // Pot value, 0-179 degrees
 double              updateTime      = 0.0;    // Control law update time, sec
@@ -180,11 +186,13 @@ void setup()
   pinMode(CL_PIN,  INPUT);
 
   // Lag filter
-  throttleFilter  = new LagTustin(float(CONTROL_DELAY)/1000000.0, tau,  -0.1, 0.1);
-  modelFilter1    = new LagTustin(float(CONTROL_DELAY)/1000000.0, tau1, -0.1, 0.1);
-  modelFilter2g   = new LagTustin(float(CONTROL_DELAY)/1000000.0, tau2, -0.1, 0.1);
-  modelFilter2f   = new LagTustin(float(CONTROL_DELAY)/1000000.0, tau2, -0.1, 0.1);
-  analyzer        = new FRAnalyzer(0, 3, 0.1,    2,    6, 1/tau1, double(CONTROL_DELAY/1e6), fn, ix, iy, 3, 2);
+  double T        = float(CONTROL_DELAY)/1000000.0;
+  throttleFilter  = new LagTustin(    T, tau,  -0.1, 0.1);
+  modelFilterE    = new LeadLagTustin(T, tldE, tauE,-0.1, 0.1);
+  modelFilterG    = new LagTustin(    T, tauG, -0.1, 0.1);
+  modelFilterF    = new LagTustin(    T, tauF, -0.1, 0.1);
+  modelFilterV    = new LagTustin(    T, tauV, -0.1, 0.1);
+  analyzer        = new FRAnalyzer(0, 3, 0.1,    2,    6, 1/tauG, double(CONTROL_DELAY/1e6), fn, ix, iy, 3, 2);
   //                               on ox   do minCy iniCy  wSlow
   delay(1000);
 #ifndef ARDUINO
@@ -250,7 +258,7 @@ void loop() {
   static double           modPcng      = 0;   // Modeled pcng ref after esc ttl delay, %Nf
   static double           pcnfRef      = 0;   // Fan speed closed loop reference, %Nf
   static int              RESET        = 1;   // Dynamic reset
-  static double           tFilter;            // Modeled temp, F
+  static double           tFilter;            // Actual update time, s
   static double           exciter      = 0;   // Frequency response excitation, fraction
   static double           throttleCL, throttleCLM, e, eM;
 
@@ -303,7 +311,7 @@ void loop() {
     vemf     = double(emfValue)/INSCALE*3.3;
     pcnf     = fmax(AEMF*vemf*vemf + BEMF*vemf + CEMF, 0.0);
 #else
-    pcnf     = model2b;
+    pcnf     = modelF;
 #endif
     throttle = fmin(double(potValue)/INSCALE*115.0, 115);
     fn[2]    = pcnf;
@@ -312,11 +320,11 @@ void loop() {
   // Control law
   if ( filter )
   {
-    throttle_filt = throttleFilter->calculate(throttle,  RESET, tFilter);
+    throttle_filt = throttleFilter->calculate(throttle,  RESET);
     pcnfRef       = fmax(fmin(throttle_filt/115.*30.-1., 27.5), 0.);
     // Control law
     e    = pcnfRef - pcnf;
-    eM   = pcnfRef - model2b;
+    eM   = pcnfRef - modelFS;
     if ( !closingLoop ) intState = throttle_filt;
     intState    = fmax(fmin(intState  + Ki*e*updateTime,   145.0), -145.0);
     throttleCL  = fmax(fmin(intState  + fmax(fmin(Kp*e,    145.0), -145.0), 115.0), 0.0);
@@ -349,14 +357,15 @@ void loop() {
     if ( ttl ) modPcng = fmax((AMDL*throttleCLM + BMDL)*throttleCLM + CMDL, 0.0);
   }
 
-  // Filters
+  // Model
   if ( filter )
   {
-    model1         = modelFilter1->calculate( modPcng, RESET, tFilter);
-    model2a        = modelFilter2g->calculate(model1,  RESET, tFilter);
-    model2b        = modelFilter2f->calculate(model2a, RESET, tFilter);
+    modelE      = modelFilterE->calculate(modPcng, RESET);
+    modelG      = modelFilterG->calculate(modelE,  RESET);
+    modelF      = modelFilterF->calculate(modelG,  RESET);
+    modelFS     = modelFilterV->calculate(modelF,  RESET);
     if ( analyzing ) exciter = analyzer->calculate();  // use previous exciter for everything
-    fn[1]          = model2b;
+    fn[1]          = modelF;
     RESET          = 0;
   }
 
@@ -396,11 +405,11 @@ void loop() {
     {
 #ifndef ARDUINO
       if (verbose>1) Serial.printf("tim=%10.6f, cl=%ld, ref=%6.4f, nf=%4.2f, e=%4.2f, s=%4.2f, ser=%4.2f, :::: ref=%4.2f, nfM=%4.2f, eM=%4.2f, sM=%4.2f, serM=%4.2f, ttl=%ld, modPcng=%4.2f,\n",
-        elapsedTime, closingLoop, pcnfRef, pcnf, e, intState, throttleCL, pcnfRef, model2b, eM, intStateM, throttleCLM, ttl, modPcng);
+        elapsedTime, closingLoop, pcnfRef, pcnf, e, intState, throttleCL, pcnfRef, modelF, eM, intStateM, throttleCLM, ttl, modPcng);
 #else
       if (verbose>1) sprintf(buffer, "t=%s, cl=%s, ref=%s, nf=%s, e=%s, s=%s, ser=%s, :::: ref=%s, nfM=%s, eM=%s, sM=%s, serM=%s, ttl=%s, modPcng=%s, T=%s\n",
         String(elapsedTime,6).c_str(), String(closingLoop).c_str(), String(pcnfRef).c_str(), String(pcnf).c_str(), String(e).c_str(),
-        String(intState).c_str(), String(throttleCL).c_str(), String(pcnfRef).c_str(), String(model2b).c_str(),
+        String(intState).c_str(), String(throttleCL).c_str(), String(pcnfRef).c_str(), String(modelF).c_str(),
         String(eM).c_str(), String(intStateM).c_str(), String(throttleCLM).c_str(), String(ttl).c_str(),
         String(modPcng).c_str(), String(updateTime,6).c_str());
         Serial.print(buffer);
@@ -408,5 +417,3 @@ void loop() {
     }
   }  // publish
 }
-
-

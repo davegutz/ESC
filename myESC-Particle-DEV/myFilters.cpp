@@ -4,6 +4,7 @@
   Class code for embedded application.
 
   07-Jan-2015   Dave Gutz   Created
+  30-Sep-2016   Dave Gutz   LeadLagTustin
  ****************************************************/
 #include "myFilters.h"
 #include "math.h"
@@ -30,6 +31,7 @@ double DiscreteFilter::calculate(double input, int RESET)
   return(rate_);
 }
 void DiscreteFilter::rateState(double in){}
+double DiscreteFilter::rateStateCalc(double in){}
 void DiscreteFilter::assignCoeff(double tau){}
 double DiscreteFilter::state(void){return(0);}
 
@@ -62,13 +64,11 @@ void RateLagTustin::rateState(double in)
 }
 void RateLagTustin::assignCoeff(double tau)
 {
-  a_  = 2.0 / (2.0*tau_ + T_);
-  b_  = (2.0*tau_ - T_)/(2.0*tau_ + T_);
+  tau_  = tau;
+  a_    = 2.0 / (2.0*tau_ + T_);
+  b_    = (2.0*tau_ - T_)/(2.0*tau_ + T_);
 }
 double RateLagTustin::state(void){return(state_);};
-
-
-
 
 
 
@@ -79,7 +79,7 @@ LeadLagTustin::LeadLagTustin() : DiscreteFilter(){}
 LeadLagTustin::LeadLagTustin(const double T, const double tld, const double tau, const double min, const double max)
 : DiscreteFilter(T, tau, min, max)
 {
-  LeadLagTustin::assignCoeff(tld, tau);
+  LeadLagTustin::assignCoeff(tld, tau, T);
 }
 //LeadLagTustin::LeadLagTustin(const LeadLagTustin & RLT)
 //: DiscreteFilter(RLT.T_, RLT.tau_, RLT.min_, RLT.max_){}
@@ -92,25 +92,40 @@ double LeadLagTustin::calculate(double in, int RESET)
   {
     state_ = in;
   }
-  LeadLagTustin::rateState(in);
-  return(rate_);
+  double out = LeadLagTustin::rateStateCalc(in);
+  return(out);
 }
-void LeadLagTustin::rateState(double in)
+double LeadLagTustin::calculate(double in, int RESET, const double T)
 {
-  rate_   =  fmax(fmin(a_*(in - state_), max_), min_);
-  state_  = in*(1.0-b_) + state_*b_;
+  if (RESET>0)
+  {
+    state_ = in;
+  }
+  double out = LeadLagTustin::rateStateCalc(in, T);
+  return(out);
 }
-void LeadLagTustin::assignCoeff(double tld, double tau)
+double LeadLagTustin::rateStateCalc(const double in)
 {
+  double out  = rate_ + state_;
+  rate_       =  fmax(fmin(b_*(in - state_), max_), min_);
+  state_      = in*(1.0-a_) + state_*a_;
+  return ( out );
+}
+double LeadLagTustin::rateStateCalc(const double in, const double T)
+{
+  assignCoeff(tld_, tau_, T);
+  double out = rateStateCalc(in);
+  return ( out );
+}
+void LeadLagTustin::assignCoeff(const double tld, const double tau, const double T)
+{
+  T_    = T;
   tld_  = tld;
-  a_    = 2.0 / (2.0*tau_ + T_);
-  b_    = (2.0*tau_ - T_)/(2.0*tau_ + T_);
+  tau_  = tau;
+  a_    = (2.0*tau  - T_) / (2.0*tau_ + T_);
+  b_    = (2.0*tld_ + T_) / (2.0*tau_ + T_);
 }
 double LeadLagTustin::state(void){return(state_);};
-
-
-
-
 
 
 // Exponential rate-lag rate calculator, non-pre-warped, no limits, fixed update rate
@@ -153,9 +168,9 @@ void RateLagExp::rateState(double in)
 }
 void RateLagExp::rateState(double in, const double T)
 {
-  rate_    =  fmax(fmin(c_*(a_*rstate_ + b_*in - lstate_), max_), min_);
-  rstate_  =  in;
-  lstate_  += T*rate_;
+  T_  =   T;
+  assignCoeff(tau_);
+  rateState(in);
 }
 void RateLagExp::assignCoeff(double tau)
 {
@@ -206,14 +221,14 @@ void LagTustin::calcState(double in)
 }
 void LagTustin::calcState(double in, const double T)
 {
-  a_  = 2.0 / (2.0*tau_ + T);
-  b_  = (2.0*tau_ - T)/(2.0*tau_ + T);
-  rate_   =  fmax(fmin(a_*(in - state_), max_), min_);
-  state_  = in*(1.0-b_) + state_*b_;
+  T_  = T;
+  assignCoeff(tau_);
+  calcState(in);
 }
 void LagTustin::assignCoeff(double tau)
 {
-  a_  = 2.0 / (2.0*tau_ + T_);
-  b_  = (2.0*tau_ - T_)/(2.0*tau_ + T_);
+  tau_  = tau;
+  a_    = 2.0 / (2.0*tau_ + T_);
+  b_    = (2.0*tau_ - T_)/(2.0*tau_ + T_);
 }
 double LagTustin::state(void){return(state_);};
