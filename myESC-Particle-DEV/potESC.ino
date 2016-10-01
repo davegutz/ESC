@@ -91,7 +91,7 @@ Connections for Arduino:
 
 // Test features
 extern  const int   verbose         = 2;    // Debug, as much as you can tolerate
-const         bool  freqResp        = false;  // Perform frequency response test on boot
+const         bool  freqResp        = true;  // Perform frequency response test on boot
 
 // Constants always defined
 // #define CONSTANT
@@ -124,9 +124,7 @@ const         bool  freqResp        = false;  // Perform frequency response test
 #include "myFilters.h"
 
 // Global variables
-#ifdef ARDUINO
-  char buffer[256];
-#endif
+char buffer[256];
 LagTustin*          throttleFilter;           // Tustin lag filter
 LeadLagTustin*      modelFilterE;             // Tustin lead lag filter esc
 LagTustin*          modelFilterG;             // Tustin lag filter gas gen
@@ -194,8 +192,8 @@ void setup()
   modelFilterG    = new LagTustin(    T, tauG, -0.1, 0.1);
   modelFilterF    = new LagTustin(    T, tauF, -0.1, 0.1);
   modelFilterV    = new LagTustin(    T, tauV, -0.1, 0.1);
-  analyzer        = new FRAnalyzer(0, 3, 0.1,    2,    6, 1/tauG, double(CONTROL_DELAY/1e6), fn, ix, iy, 3, 2);
-  //                               on ox   do minCy iniCy  wSlow
+  analyzer        = new FRAnalyzer(-0.2, 2.3, 0.1,    2,    6,     1/tauG, double(CONTROL_DELAY/1e6), fn, ix, iy, 3, 2);
+  //                               wmin  wmax dw      minCy iniCy  wSlow
   delay(1000);
 #ifndef ARDUINO
   if (verbose>1) Serial.printf("\nCalibrating ESC...");
@@ -216,19 +214,10 @@ void setup()
     myservo.write(throttle);
     delay(20);
   }
-#ifndef ARDUINO
-  if (verbose>1) Serial.printf("Done.\n");
-  Serial.printf("To flash code to this device, push and hold both Photon buttons, release RESET until purple observed, then release.\n");
-#else
   if (verbose>1) Serial.println("Done.");
   Serial.println("To flash code to this device, use Arduino IDE - Ctrl-R, Ctrl-U.");
-#endif
   analyzer->publish();
-#ifndef ARDUINO
-  Serial.printf("\n");
-#else
   Serial.println("");
-#endif
 
 #ifndef ARDUINO
   WiFi.off();
@@ -386,36 +375,24 @@ void loop() {
   {
     if ( freqResp )
     {
-#ifndef ARDUINO
-      if (verbose>1) Serial.printf("tim=%10.6f, ref=%6.4f, exc=%6.4f, ser=%4.2f, mod=%4.2f, nf=%4.2f, T=%8.6f, ",
-        elapsedTime, pcnfRef, exciter, fn[0], fn[1], fn[2], updateTime);
-#else
       if (verbose>1) sprintf(buffer, "t=%s, ref=%s, exc=%s, ser=%s, mod=%s, nf=%s, T=%s,",
         String(elapsedTime,6).c_str(), String(pcnfRef).c_str(), String(exciter).c_str(), String(fn[0]).c_str(),
         String(fn[1]).c_str(), String(fn[2]).c_str(), String(updateTime,6).c_str());
       Serial.print(buffer);
-#endif
       if( !analyzer->complete() )
       {
         analyzer->publish();
       }
-#ifdef ARDUINO
-      Serial.println("");
-#endif
+      Serial.println("");Serial.flush();
     }  // freqResp
     else
     {
-#ifndef ARDUINO
-      if (verbose>1) Serial.printf("tim=%10.6f, cl=%ld, ref=%6.4f, nf=%4.2f, e=%4.2f, s=%4.2f, ser=%4.2f, :::: ref=%4.2f, nfM=%4.2f, eM=%4.2f, sM=%4.2f, serM=%4.2f, ttl=%ld, modPcng=%4.2f,\n",
-        elapsedTime, closingLoop, pcnfRef, pcnf, e, intState, throttleCL, pcnfRef, modelF, eM, intStateM, throttleCLM, ttl, modPcng);
-#else
       if (verbose>1) sprintf(buffer, "t=%s, cl=%s, ref=%s, nf=%s, e=%s, s=%s, ser=%s, :::: ref=%s, nfM=%s, eM=%s, sM=%s, serM=%s, ttl=%s, modPcng=%s, T=%s\n",
         String(elapsedTime,6).c_str(), String(closingLoop).c_str(), String(pcnfRef).c_str(), String(pcnf).c_str(), String(e).c_str(),
         String(intState).c_str(), String(throttleCL).c_str(), String(pcnfRef).c_str(), String(modelF).c_str(),
         String(eM).c_str(), String(intStateM).c_str(), String(throttleCLM).c_str(), String(ttl).c_str(),
         String(modPcng).c_str(), String(updateTime,6).c_str());
-        Serial.print(buffer);
-#endif
+        Serial.print(buffer);Serial.flush();
     }
   }  // publish
 }

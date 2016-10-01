@@ -7,13 +7,16 @@
 #include "analyzer.h"
 #include "math.h"
 
+// Global variables
+extern char buffer[256];
+
 //Class FRAnalyzer
 
 FRAnalyzer::FRAnalyzer(const int omegaLogMin, const int omegaLogMax, const double deltaOmegaLog, const int minCycles,
   const int numInitCycles, const double wSlow, const double T, const double sig[], const int ix[], const int iy[], const int nsig, const int ntf)
   : aint_(0), complete_(false), cosOmT_(0), deltaOmegaLog_(deltaOmegaLog), excite_(0), iOmega_(0), iResults_(0UL),
   iTargetOmega_(0), iTargetResults_(0UL), minCycles_(minCycles), nsig_(nsig), ntf_(ntf), numCycles_(0),
-  omega_(0), omegaLog_(0), omegaLogMax_(omegaLogMax), omegaLogMin_(omegaLogMin), sig_(sig), sinOmT_(0), T_(T),
+  omega_(0), omegaLog_(omegaLogMin), omegaLogMax_(omegaLogMax), omegaLogMin_(omegaLogMin), sig_(sig), sinOmT_(0), T_(T),
   timeAtOmega_(0), timeTargetOmega_(0), timeTotalSweep_(0), Tlog_(log10(T)), wSlow_(wSlow)
 {
 
@@ -222,46 +225,26 @@ double FRAnalyzer::runIntegrate_(void)
       sigPhas_[isig]    = 180. / pi * atan2(a1_[isig], b1_[isig]);
     }
       // Compute transfer function mag and phase and print results.
-#ifndef ARDUINO
-        Serial.printf("% #10.4g", omega_);
-#else
-        char printf[256];
-        sprintf(printf, "% s", String(omega_).c_str());
-        Serial.print(printf);
-#endif
+      sprintf(buffer, "% s", String(omega_).c_str());
+      Serial.print(buffer);
       for(int itf = 0; itf < ntf_; itf++)
       {
         transGain_[itf]     = sigGain_[iy_[itf]]  - sigGain_[ix_[itf]];
         transPhas_[itf]     = sigPhas_[iy_[itf]]  - sigPhas_[ix_[itf]];
-#ifndef ARDUINO
-        Serial.printf(" % #10.4g % #10.4g", transGain_[itf], transPhas_[itf]);
-#else
-        char printf[256];
-        sprintf(printf, " %s %s", String(transGain_[itf]).c_str(), String(transPhas_[itf]).c_str());
-        Serial.print(printf);
-#endif
+        sprintf(buffer, " %s %s", String(transGain_[itf]).c_str(), String(transPhas_[itf]).c_str());
+        Serial.print(buffer);
       }
-#ifndef ARDUINO
-      Serial.printf("\n");
-#else
-        Serial.println("");
-#endif
+      Serial.println("");
   }
 }
 
-
-
+// Display results
 void FRAnalyzer::publish()
 {
-#ifndef ARDUINO
-  Serial.printf("M=%ld, omegaLog=%5.3f, numCycles=%u, omega=%5.3f, iOmega=%u/%u, timeAtOmega=%5.3f/%5.3f, iResults=%u/%u",
-  frMode_, omegaLog_, numCycles_, omega_, iOmega_, iTargetOmega_, timeAtOmega_, timeTargetOmega_, iResults_, iTargetResults_);
-#else
-  char printf[256];
-  sprintf(printf, "M=%s, omegaLog=%s, numCycles=%s, omega=%s, iOmega=%s/%s, timeAtOmega=%s/%s, iResults=%s/%s",
+  sprintf(buffer, "M=%s, omegaLog=%s, numCycles=%s, omega=%s, iOmega=%s/%s, timeAtOmega=%s/%s, iResults=%s/%s",
   String(frMode_).c_str(), String(omegaLog_).c_str(), String(numCycles_).c_str(), String(omega_).c_str(),
   String(iOmega_).c_str(), String(iTargetOmega_).c_str(), String(timeAtOmega_).c_str(), String(timeTargetOmega_).c_str(),
   String(iResults_).c_str(), String(iTargetResults_).c_str());
-  Serial.print(printf);
-#endif
+  Serial.print(buffer);
 }
+

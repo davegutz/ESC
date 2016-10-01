@@ -134,24 +134,26 @@ LagTustin*          modelFilterF;             // Tustin lag filter fan
 LagTustin*          modelFilterV;             // Tustin lag filter F2V sensor
 FRAnalyzer*         analyzer;                 // Frequency response analyzer
 Servo               myservo;  // create servo object to control a servo
-const double        AEMF            =-1.9058; // Curve fit to LM2907 circuit, %Nf/volt^2
-const double        BEMF            = 16.345; // Curve fit to LM2907 circuit, %Nf/volts
-const double        CEMF            =-2.14;   // Curve fit to LM2907 circuit, %Nf
-const double        AMDL            =-0.0028; // Curve fit to fan, %/deg^2
-const double        BMDL            = 0.8952; // Curve fit to fan, %/deg
-const double        CMDL            =-38.0;   // Curve fit to fan, %
+const double        AEMF            =-1.9058*3.125; // Curve fit to LM2907 circuit, %Nf/volt^2
+const double        BEMF            = 16.345*3.125; // Curve fit to LM2907 circuit, %Nf/volts
+const double        CEMF            =-2.14*3.125;   // Curve fit to LM2907 circuit, %Nf
+const double        AMDL            =-0.0028*3.125; // Curve fit to fan, %/deg^2
+const double        BMDL            = 0.8952*3.125; // Curve fit to fan, %/deg
+const double        CMDL            =-38.0*3.125;   // Curve fit to fan, %
 int                 potValue        = 1500;   // Dial raw value, 0-4096
 int                 emfValue        = 1000;   // Dial raw value, 0-4096
+const double        thtlMax         = 115;    // Maximum throttle to prevent shutdown due to small charger, deg
+const double        thtlMin         = 0;      // Minimum throttle, deg
 #ifndef ARDUINO
-const double        Ki              = 11.15;  // Int gain, deg/s/%Nf
-const double        Kp              = 3.0;    // Prop gain, deg/%Nf
-const double        KiM             = 11.15;  // Int gain, deg/s/%Nf
-const double        KpM             = 3.0;    // Prop gain, deg/%Nf
+const double        Ki              = 11.15/3.125;  // Int gain, deg/s/%Nf
+const double        Kp              = 3.0/3.125;    // Prop gain, deg/%Nf
+const double        KiM             = 11.15/3.125;  // Int gain, deg/s/%Nf
+const double        KpM             = 3.0/3.125;    // Prop gain, deg/%Nf
 #else
-const double        Ki              = 10.10;  // Int gain, deg/s/%Nf
-const double        Kp              = 2.61;   // Prop gain, deg/%Nf
-const double        KiM             = 9.69;   // Int gain, deg/s/%Nf
-const double        KpM             = 2.52;   // Prop gain, deg/%Nf
+const double        Ki              = 10.10/3.125;  // Int gain, deg/s/%Nf
+const double        Kp              = 2.61/3.125;   // Prop gain, deg/%Nf
+const double        KiM             = 9.69/3.125;   // Int gain, deg/s/%Nf
+const double        KpM             = 2.52/3.125;   // Prop gain, deg/%Nf
 #endif
 double              modelE          = 0;      // Model ESC output, %Ng
 double              modelG          = 0;      // Model Gas Generator output, %Ng
@@ -313,7 +315,7 @@ void loop() {
 #else
     pcnf     = modelF;
 #endif
-    throttle = fmin(double(potValue)/INSCALE*115.0, 115);
+    throttle = fmin(double(potValue)/INSCALE*thtlMax, thtlMax);
     fn[2]    = pcnf;
   }
 
@@ -321,15 +323,15 @@ void loop() {
   if ( filter )
   {
     throttle_filt = throttleFilter->calculate(throttle,  RESET);
-    pcnfRef       = fmax(fmin(throttle_filt/115.*30.-1., 27.5), 0.);
+    pcnfRef       = fmax(fmin(throttle_filt/thtlMax*30*3.125-1.0*3.125, 27.5*3.125), 0.);
     // Control law
     e    = pcnfRef - pcnf;
     eM   = pcnfRef - modelFS;
     if ( !closingLoop ) intState = throttle_filt;
-    intState    = fmax(fmin(intState  + Ki*e*updateTime,   145.0), -145.0);
-    throttleCL  = fmax(fmin(intState  + fmax(fmin(Kp*e,    145.0), -145.0), 115.0), 0.0);
-    intStateM   = fmax(fmin(intStateM + KiM*eM*updateTime, 145.0), -145.0);
-    throttleCLM = fmax(fmin(intStateM + fmax(fmin(KpM*eM,  145.0), -145.0), 115.0), 0.0);
+    intState    = fmax(fmin(intState  + Ki*e*updateTime,   thtlMax*1.26), -thtlMax*1.26);
+    throttleCL  = fmax(fmin(intState  + fmax(fmin(Kp*e,    thtlMax*1.26), -thtlMax*1.26), thtlMax), thtlMin);
+    intStateM   = fmax(fmin(intStateM + KiM*eM*updateTime, thtlMax*1.26), -thtlMax*1.26);
+    throttleCLM = fmax(fmin(intStateM + fmax(fmin(KpM*eM,  thtlMax*1.26), -thtlMax*1.26), thtlMax), thtlMin);
     if ( freqResp )
     {
       fn[0]     = throttle_filt*(1+exciter/20);
