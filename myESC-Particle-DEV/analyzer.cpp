@@ -12,7 +12,7 @@ extern char buffer[256];
 
 //Class FRAnalyzer
 
-FRAnalyzer::FRAnalyzer(const int omegaLogMin, const int omegaLogMax, const double deltaOmegaLog, const int minCycles,
+FRAnalyzer::FRAnalyzer(const double omegaLogMin, const int omegaLogMax, const double deltaOmegaLog, const int minCycles,
   const int numInitCycles, const double wSlow, const double T, const double sig[], const int ix[], const int iy[], const int nsig, const int ntf)
   : aint_(0), complete_(false), cosOmT_(0), deltaOmegaLog_(deltaOmegaLog), excite_(0), iOmega_(0), iResults_(0UL),
   iTargetOmega_(0), iTargetResults_(0UL), minCycles_(minCycles), nsig_(nsig), ntf_(ntf), numCycles_(0),
@@ -247,4 +247,3 @@ void FRAnalyzer::publish()
   String(iResults_).c_str(), String(iTargetResults_).c_str());
   Serial.print(buffer);
 }
-
