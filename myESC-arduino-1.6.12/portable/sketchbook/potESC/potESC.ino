@@ -88,7 +88,7 @@ Connections for Arduino:
 //
 // Disable flags if needed.  Usually commented
 // #define DISABLE
-#define BARE_PHOTON                       // Run bare photon for testing.  Bare photon without this goes dark or hangs trying to write to I2C
+//#define BARE_PHOTON                       // Run bare photon for testing.  Bare photon without this goes dark or hangs trying to write to I2C
 
 // Test features
 extern  const int   verbose         = 2;    // Debug, as much as you can tolerate
@@ -143,7 +143,10 @@ const  double       tauE            = 0.01;   // Model ESC lag time constant, se
 const  double       tauV            = 0.07;   // Model F2V time constant, sec
 const  double       tauG            = 0.13;   // Model Gas Generator time constant, sec
 const  double       tauF            = 0.13;   // Model Fan time constant, sec
-double              throttle        = 0;      // Pot value, 0-179 degrees
+double              throttle        = 0;      // Servo value, 0-179 degrees
+double              throttleM       = 0;      // Modeled servo value, 0-179 degrees
+double              throttleL       = 0;      // Limited servo value, 0-179 degrees
+double              throttleML      = 0;      // Limited modeled servo value, 0-179 degrees
 double              updateTime      = 0.0;    // Control law update time, sec
 double              fn[3]           = {0, 0, 0}; // Functions to analyze
 const int           ix[2]           = {0, 0}; // Indeces of fn to excitations
@@ -187,9 +190,7 @@ void setup()
     throttle = max(0, throttle-10);
     myservo.write(throttle);
     delay(20);
-  }
-  if (verbose>1) Serial.println("Done.");
-  Serial.println("To flash code to this device, use Arduino IDE - Ctrl-R, Ctrl-U.");
+  }  if (verbose>1) Serial.println("Done.");
   analyzer->publish();
   Serial.println("");
 
@@ -199,8 +200,8 @@ void setup()
 
   if (verbose>1)
   {
-    sprintf(buffer, "time,cl,ref,nf,e,s,ser,ref,nfM,eM,sM,serM,modPcng,T\n");
-    Serial.print(buffer);
+    sprintf(buffer, "time,cl,pcnfref,pcnf,err,state,thr,pcnfrefM,pcnfM,errM,stateM,thrM,modPcng,T\n");
+    Serial.print(buffer);Serial.flush();
   }
 
   delay(1000);
@@ -245,6 +246,8 @@ void loop() {
   const double            THTL_MAX     = 115;    // Maximum throttle to prevent shutdown due to small charger, deg
   const double            THTL_MIN     = 40;     // Minimum throttle, deg
   const double            RPM_P        = 209.455; // (rpm/%)
+  const double            SCMAXI       = 30*float(CONTROL_DELAY)/1000000.0;    // Maximum allowable step change in reset, deg/update
+  const double            SCMAX        = 240*float(CONTROL_DELAY)/1000000.0;   // Maximum allowable step change in reset, deg/update
   #ifdef ARDUINO
     const double      Ki              = 10.10/3.125;  // Int gain, deg/s/%Nf
     const double      Kp              = 2.61/3.125;   // Prop gain, deg/%Nf
@@ -310,7 +313,7 @@ void loop() {
     potValue  = analogRead(POT_PIN);
     emfValue  = analogRead(EMF_PIN);
     vemf      = double(emfValue)/INSCALE*F2V_MAX;
-    pcnf      = fmax(P_V4_NF[0] + vemf*(P_V4_NF[1] + vemf*P_V4_NF[2]), 0.0);
+    pcnf      = fmin(fmax(P_V4_NF[0] + vemf*(P_V4_NF[1] + vemf*P_V4_NF[2])/RPM_P, 0.0), 100);
 #endif
     vpot      = fmin(fmax(double(potValue)/INSCALE*POT_MAX, POT_MIN), POT_MAX);
     fn[2]     = pcnf;
@@ -320,15 +323,14 @@ void loop() {
   if ( control )
   {
     vpot_filt   = throttleFilter->calculate(vpot,  RESET);
-    pcnfRef     = P_P_THTL[0] + vpot_filt*P_P_THTL[1];
+    if ( closingLoop )pcnfRef     = P_P_PNF[0]  + vpot_filt*P_P_PNF[1];
+    else              pcnfRef     = P_P_THTL[0] + vpot_filt*P_P_THTL[1];
     if ( RESET )
     {
-      throttle  = P_NF_NG[0] + pcnfRef*RPM_P*P_NF_NG[1];   // RPM Ng
-      throttle  = exp((throttle+P_LT_NG[0])/P_LT_NG[1]);   // deg throttle
-      intState  = intStateM = throttle;
-      printf(buffer, "t=%s, pcnfRef=%s, throttle=%s\n",
-        String(elapsedTime,6).c_str(), String(pcnfRef).c_str(), String(throttle).c_str());
-      Serial.print(buffer);
+      double throttleRPM  = P_NF_NG[0] + pcnfRef*RPM_P*P_NF_NG[1];      // RPM Ng
+      intState  = intStateM = exp((throttleRPM-P_LT_NG[0])/P_LT_NG[1]); // deg throttle
+      pcnf      = pcnfRef;
+      modelFS   = pcnfRef;
     }
     e           = pcnfRef - pcnf;
     eM          = pcnfRef - modelFS;
@@ -339,13 +341,36 @@ void loop() {
     throttleCLM = fmax(fmin(intStateM + fmax(fmin(KpM*eM,  THTL_MAX*1.26), -THTL_MAX*1.26), THTL_MAX), THTL_MIN);
     if ( closingLoop )
     {
-      throttle    = throttleCL;
-      throttleCLM = throttle;
+      double  throttleU   = throttleCL;
+      double throttleMU   = throttleCLM;
+     // Apply rate limits as needed
+      if ( RESET )
+      {
+        throttleL  = fmax(fmin(throttleU,   throttleL+SCMAXI),   throttleL-SCMAXI);      
+        throttleML = fmax(fmin(throttleMU,  throttleML+SCMAXI),  throttleML-SCMAXI);      
+      }
+      else
+      {
+        throttleL  = fmax(fmin(throttleU,   throttleL+SCMAX),   throttleL-SCMAX);      
+        throttleML = fmax(fmin(throttleMU,  throttleML+SCMAX),  throttleML-SCMAX);      
+      }
+      throttle  = throttleL;
+      throttleM = throttleML;
     }
     else
     {
-      throttle    = (P_NF_NG[0] + pcnfRef*RPM_P*P_NF_NG[1]);   // RPM Ng
-      throttle    = exp((throttle+P_LT_NG[0])/P_LT_NG[1]) * (1+exciter/20);   // deg throttle
+      double throttleRPM    = (P_NF_NG[0] + pcnfRef*RPM_P*P_NF_NG[1]);          // RPM Ng
+      double throttleU      = exp((throttleRPM-P_LT_NG[0])/P_LT_NG[1]) * (1+exciter/20);  // deg throttle
+      // Apply rate limits as needed
+      if ( RESET )
+      {
+        throttleL = throttleML = fmax(fmin(throttleU, throttleL+SCMAX), throttleL-SCMAX);      
+      }
+      else
+      {
+        throttleL   = throttleU;
+      }
+      throttle  = throttleM = throttleL;
     }
     fn[0] = throttle;
   }
@@ -356,7 +381,7 @@ void loop() {
     if ( RESET )
       modPcng   = (P_NF_NG[0] + pcnfRef*RPM_P*P_NF_NG[1])/RPM_P;
     else
-      modPcng   = fmax((P_LT_NG[0] + P_LT_NG[1]*log(throttleCLM)) / RPM_P, 0.0);
+      modPcng   = fmax((P_LT_NG[0] + P_LT_NG[1]*log(throttleM)) / RPM_P, 0.0);
     modelE      = modelFilterE->calculate(modPcng, RESET);
     modelG      = modelFilterG->calculate(modelE,  RESET);
     modelF      = modelFilterF->calculate((P_NG_NF[0] + modelG*RPM_P*P_NG_NF[1])/RPM_P,  RESET);
@@ -378,12 +403,12 @@ void loop() {
   {
     if ( freqResp )
     {
-      if (verbose>1) sprintf(buffer, "t=%s, ref=%s, exc=%s, ser=%s, mod=%s, nf=%s, T=%s,",
+      if (verbose>1) sprintf(buffer, "t=%s, ref=%s, exc=%s, thr=%s, mod=%s, nf=%s, T=%s,",
         String(elapsedTime,6).c_str(), String(pcnfRef).c_str(),
         String(exciter).c_str(), String(throttle).c_str(),
         String(modelFS).c_str(), String(pcnf).c_str(),
         String(updateTime,6).c_str());
-      Serial.print(buffer);
+      Serial.print(buffer);Serial.flush();
       if( !analyzer->complete() )
       {
         analyzer->publish();
@@ -395,11 +420,11 @@ void loop() {
       if (verbose>1) sprintf(buffer, "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n",
         String(elapsedTime,6).c_str(), String(closingLoop).c_str(),
         String(pcnfRef).c_str(), String(pcnf).c_str(), String(e).c_str(),
-        String(intState).c_str(), String(throttleCL).c_str(),
+        String(intState).c_str(), String(throttle).c_str(),
         String(pcnfRef).c_str(), String(modelF).c_str(),
-        String(eM).c_str(), String(intStateM).c_str(), String(throttleCLM).c_str(),
+        String(eM).c_str(), String(intStateM).c_str(), String(throttleM).c_str(),
         String(modPcng).c_str(), String(updateTime,6).c_str());
-      Serial.print(buffer);
+      Serial.print(buffer);Serial.flush();
     }
   }  // publish
 }
