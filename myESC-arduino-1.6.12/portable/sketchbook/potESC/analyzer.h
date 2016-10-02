@@ -4,11 +4,12 @@
 static  const   double  pi  = 3.14159265358979323846264338327950288419716939937510;
 
 
+
 class FRAnalyzer
 {
 public:
   FRAnalyzer();
-  FRAnalyzer(const int omegaLogMin, const int omegaLogMax, const double deltaOmegaLog, const int minCycles,
+  FRAnalyzer(const double omegaLogMin, const double omegaLogMax, const double deltaOmegaLog, const int minCycles,
     const int numInitCycles, const double wSlow, const double T, const double sig[], const int ix[], const int iy[],
     const int nsig, const int ntf);
   ~FRAnalyzer(){};
