@@ -73,40 +73,30 @@ Connections for Arduino:
 //
 
 // Standard
-#ifndef ARDUINO
-  #include "application.h"      // Should not be needed if file .ino or Arduino
-  SYSTEM_THREAD(ENABLED);       // Make sure heat system code always run regardless of network status
-#else
+#ifdef ARDUINO
   #include <Servo.h>
   #include <Print.h>
+#else   // Photon
+  #include "application.h"      // Should not be needed if file .ino or Arduino
+  SYSTEM_THREAD(ENABLED);       // Make sure heat system code always run regardless of network status
 #endif
 #include "math.h"
 #include "analyzer.h"
+
 //
 // Test features usually commented
 //
 // Disable flags if needed.  Usually commented
 // #define DISABLE
-//#define BARE_PHOTON                       // Run bare photon for testing.  Bare photon without this goes dark or hangs trying to write to I2C
+#define BARE_PHOTON                       // Run bare photon for testing.  Bare photon without this goes dark or hangs trying to write to I2C
 
 // Test features
 extern  const int   verbose         = 2;    // Debug, as much as you can tolerate
-const         bool  freqResp        = true;  // Perform frequency response test on boot
+const         bool  freqResp        = false;  // Perform frequency response test on boot
 
 // Constants always defined
 // #define CONSTANT
-#ifndef ARDUINO  // Photon
-  #define PWM_PIN          A4                 // PWM output (A4)
-  #define POT_PIN          A0                 // Potentiometer input pin on Photon (A0)
-  #define EMF_PIN          A2                 // Fan speed back-emf input pin on Photon (A2)
-  #define LED_PIN          D7                 // Status LED
-  #define CL_PIN           D0                 // 3.3v to close loop (D0)
-  #define FR_DELAY         40000000UL         // Time to start FR, micros
-  #define CLOCK_TCK        8UL                // Clock tick resolution, micros
-  #define PUBLISH_DELAY    40000UL            // Time between cloud updates (), micros
-  #define CONTROL_DELAY    1000UL             // Control law wait (), micros
-  #define INSCALE          4096.0             // Input full range from OS
-#else
+#ifdef ARDUINO
   #define PWM_PIN          5                  // PWM output (PD5)
   #define POT_PIN          A0                 // Potentiometer input pin on Photon (PC0)
   #define EMF_PIN          A2                 // Fan speed back-emf input pin on Photon (PC2)
@@ -117,6 +107,17 @@ const         bool  freqResp        = true;  // Perform frequency response test 
   #define PUBLISH_DELAY    60000UL            // Time between cloud updates (), micros
   #define CONTROL_DELAY    15000UL            // Control law wait (), micros
   #define INSCALE          1023.0             // Input full range from OS
+#else   // Photon
+  #define PWM_PIN          A4                 // PWM output (A4)
+  #define POT_PIN          A0                 // Potentiometer input pin on Photon (A0)
+  #define EMF_PIN          A2                 // Fan speed back-emf input pin on Photon (A2)
+  #define LED_PIN          D7                 // Status LED
+  #define CL_PIN           D0                 // 3.3v to close loop (D0)
+  #define FR_DELAY         40000000UL         // Time to start FR, micros
+  #define CLOCK_TCK        8UL                // Clock tick resolution, micros
+  #define PUBLISH_DELAY    40000UL            // Time between cloud updates (), micros
+  #define CONTROL_DELAY    10000UL            // Control law wait (), micros
+  #define INSCALE          4096.0             // Input full range from OS
 #endif
 
 //
@@ -132,32 +133,10 @@ LagTustin*          modelFilterF;             // Tustin lag filter fan
 LagTustin*          modelFilterV;             // Tustin lag filter F2V sensor
 FRAnalyzer*         analyzer;                 // Frequency response analyzer
 Servo               myservo;  // create servo object to control a servo
-const double        AEMF            =-1.9058*3.125; // Curve fit to LM2907 circuit, %Nf/volt^2
-const double        BEMF            = 16.345*3.125; // Curve fit to LM2907 circuit, %Nf/volts
-const double        CEMF            =-2.14*3.125;   // Curve fit to LM2907 circuit, %Nf
-const double        AMDL            =-0.0028*3.125; // Curve fit to fan, %/deg^2
-const double        BMDL            = 0.8952*3.125; // Curve fit to fan, %/deg
-const double        CMDL            =-38.0*3.125;   // Curve fit to fan, %
-int                 potValue        = 1500;   // Dial raw value, 0-4096
-int                 emfValue        = 1000;   // Dial raw value, 0-4096
-const double        thtlMax         = 115;    // Maximum throttle to prevent shutdown due to small charger, deg
-const double        thtlMin         = 0;      // Minimum throttle, deg
-#ifndef ARDUINO
-const double        Ki              = 11.15/3.125;  // Int gain, deg/s/%Nf
-const double        Kp              = 3.0/3.125;    // Prop gain, deg/%Nf
-const double        KiM             = 11.15/3.125;  // Int gain, deg/s/%Nf
-const double        KpM             = 3.0/3.125;    // Prop gain, deg/%Nf
-#else
-const double        Ki              = 10.10/3.125;  // Int gain, deg/s/%Nf
-const double        Kp              = 2.61/3.125;   // Prop gain, deg/%Nf
-const double        KiM             = 9.69/3.125;   // Int gain, deg/s/%Nf
-const double        KpM             = 2.52/3.125;   // Prop gain, deg/%Nf
-#endif
 double              modelE          = 0;      // Model ESC output, %Ng
 double              modelG          = 0;      // Model Gas Generator output, %Ng
 double              modelF          = 0;      // Model Fan, %Nf
 double              modelFS         = 0;      // Model Fan Sensed, %Nf
-double              pcnf            = 0;      // Fan speed, % of 57600 rpm
 const  double       tau             = 0.10;   // Input noise filter time constant, sec
 const  double       tldE            = 0.05;   // Model ESC lead time constant, sec
 const  double       tauE            = 0.01;   // Model ESC lag time constant, sec
@@ -165,12 +144,11 @@ const  double       tauV            = 0.07;   // Model F2V time constant, sec
 const  double       tauG            = 0.13;   // Model Gas Generator time constant, sec
 const  double       tauF            = 0.13;   // Model Fan time constant, sec
 double              throttle        = 0;      // Pot value, 0-179 degrees
-double              throttle_filt   = 0;      // Pot value, 0-179 degrees
 double              updateTime      = 0.0;    // Control law update time, sec
-double              vemf            = 0;      // Converted sensed back emf LM2907 circuit measure, volts
 double              fn[3]           = {0, 0, 0}; // Functions to analyze
 const int           ix[2]           = {0, 0}; // Indeces of fn to excitations
 const int           iy[2]           = {1, 2}; // Indeces of fn to responses
+
 
 
 void setup()
@@ -192,15 +170,11 @@ void setup()
   modelFilterG    = new LagTustin(    T, tauG, -0.1, 0.1);
   modelFilterF    = new LagTustin(    T, tauF, -0.1, 0.1);
   modelFilterV    = new LagTustin(    T, tauV, -0.1, 0.1);
-  analyzer        = new FRAnalyzer(-0.2, 2.3, 0.1,    2,    6,     1/tauG, double(CONTROL_DELAY/1e6), fn, ix, iy, 3, 2);
+  analyzer        = new FRAnalyzer(-0.8, 2.3, 0.1,    2,    6,     1/tauG, double(CONTROL_DELAY/1e6), fn, ix, iy, 3, 2);
   //                               wmin  wmax dw      minCy iniCy  wSlow
   delay(1000);
-#ifndef ARDUINO
-  if (verbose>1) Serial.printf("\nCalibrating ESC...");
-#else
   if (verbose>1) sprintf(buffer,"\nCalibrating ESC...");
   Serial.print(buffer);
-#endif
   while (throttle<179)
   {
     throttle = min(179, throttle+10);
@@ -223,17 +197,21 @@ void setup()
   WiFi.off();
 #endif
 
+  if (verbose>1)
+  {
+    sprintf(buffer, "time,cl,ref,nf,e,s,ser,ref,nfM,eM,sM,serM,modPcng,T\n");
+    Serial.print(buffer);
+  }
+
   delay(1000);
 }
+
+
 
 void loop() {
   bool                    closingLoop = false;// Closing loop by pin cmd, T/F
   bool                    control;            // Control sequence, T/F
-  bool                    filter;             // Filter for temperature, T/F
   bool                    publish;            // Publish, T/F
-  bool                    reading;            // Read, T/F
-  bool                    ttl;                // TTL model processing, T/F
-  bool                    checkPot;           // Display to LED, T/F
   bool                    analyzing;          // Begin analyzing, T/F
   unsigned long           now = micros();     // Keep track of time
   static unsigned long    start        = 0UL; // Time to start looping, micros
@@ -241,45 +219,77 @@ void loop() {
   static double           intState     = 0;   // PI control integrate state, deg
   static double           intStateM    = 0;   // PI control integrate state for model, deg
   static unsigned long    lastControl  = 0UL; // Last control law time, micros
-  static unsigned long    lastFilter   = 0UL; // Last filter time, micros
   static unsigned long    lastPublish  = 0UL; // Last publish time, micros
-  static unsigned long    lastRead     = 0UL; // Last read time, micros
-  static unsigned long    lastTTL      = 0UL; // Last TTL time, micros
   static unsigned long    lastFR       = 0UL; // Last analyzing, micros
   static double           modPcng      = 0;   // Modeled pcng ref after esc ttl delay, %Nf
   static double           pcnfRef      = 0;   // Fan speed closed loop reference, %Nf
   static int              RESET        = 1;   // Dynamic reset
-  static double           tFilter;            // Actual update time, s
+  const  double           RESEThold    = 5;   // RESET hold, s
   static double           exciter      = 0;   // Frequency response excitation, fraction
   static double           throttleCL, throttleCLM, e, eM;
+  // See calibration20160913.xlsx for these hardware conversion derivations
+  const double            P_V4_NF[3]   = {0, 7734,-587}; // Coeff V4(v) to NF(rpm)
+  const double            P_LT_NG[2]   = {-74859,20204}; // Coeff log(throttle(deg)) to NG(rpm)
+  const double            P_F_PNG[2]   = {0,     4189};  // Coeff F2V(v) to NG(rpm)
+  const double            P_F_NG[2]    = {0,     20};    // Coeff F2V(v) to PCNG(%)
+  const double            P_F_PNF[2]   = {-5000, 4239};  // Coeff F2V(v) to NF(rpm)
+  const double            P_F_NF[2]    = {-24,   20};    // Coeff F2V(v) to PCNF(%)
+  const double            P_P_PNF[2]   = {0,     16};    // Coeff pot(v) to PCNF(%)
+  const double            P_P_THTL[2]  = {40,    15};    // Coeff pot(v) to throttle(deg)
+  const double            P_NG_NF[2]   = {-4432, 0.9849}; // Coeff NG(rpm) to NF(rpm)
+  const double            P_NF_NG[2]   = {4586,  1.007};  // Coeff NF(rpm) to NG(rpm)
+  const double            F2V_MAX      = 3.3; // Maximum F2V value, vdc
+  const double            F2V_MIN      = 0;   // Minimum F2V value, vdc
+  const double            POT_MAX      = 5;   // Maximum POT value, vdc
+  const double            POT_MIN      = 0;   // Minimum POT value, vdc
+  const double            THTL_MAX     = 115;    // Maximum throttle to prevent shutdown due to small charger, deg
+  const double            THTL_MIN     = 40;     // Minimum throttle, deg
+  const double            RPM_P        = 209.455; // (rpm/%)
+  #ifdef ARDUINO
+    const double      Ki              = 10.10/3.125;  // Int gain, deg/s/%Nf
+    const double      Kp              = 2.61/3.125;   // Prop gain, deg/%Nf
+    const double      KiM             = 9.69/3.125;   // Int gain, deg/s/%Nf
+    const double      KpM             = 2.52/3.125;   // Prop gain, deg/%Nf
+  #else  // Photon
+    const double      Ki              = 11.15/3.125;  // Int gain, deg/s/%Nf
+    const double      Kp              = 3.0/3.125;    // Prop gain, deg/%Nf
+    const double      KiM             = 11.15/3.125;  // Int gain, deg/s/%Nf
+    const double      KpM             = 3.0/3.125;    // Prop gain, deg/%Nf
+  #endif
+  static double       pcnf            = 0;      // Fan speed, % of 57600 rpm
+  static double       vemf            = 0;      // Converted sensed back emf LM2907 circuit measure, volts
+  static double       vpot_filt       = 0;      // Pot value, 0-179 degrees
+  static double       vpot            = 0;      // Pot value, 0-179 degrees
+  static int          emfValue        = INSCALE/4;   // Dial raw value, 0-4096
+  static int          potValue        = INSCALE/3;   // Dial raw value, 0-4096
 
   // Executive
   if ( start == 0UL ) start = now;
   elapsedTime  = double(now - start)*1e-6;
-
-  closingLoop =   digitalRead(CL_PIN) == LOW;
-
+#ifdef BARE_PHOTON
+  closingLoop = true;
+#else
+  closingLoop = digitalRead(CL_PIN) == LOW;
+#endif
   publish   = ((now-lastPublish) >= PUBLISH_DELAY-CLOCK_TCK/2 );
-  if ( publish ) {
+  if ( publish )
+  {
     lastPublish  = now;
   }
-
-  reading    = ((now-lastRead) >= CONTROL_DELAY-CLOCK_TCK/2 || RESET>0);
-  if ( reading     ) lastRead      = now;
-
-  ttl     = ((now-lastTTL) >= CONTROL_DELAY-CLOCK_TCK/2 || RESET>0);
-  if ( ttl      ) lastTTL      = now;
-
-  filter    = ((now-lastFilter)>=CONTROL_DELAY-CLOCK_TCK/2 ) || RESET>0;
-  if ( filter )
+  unsigned long deltaT = now - lastControl;
+  control = (deltaT >= CONTROL_DELAY-CLOCK_TCK/2 );
+  if ( control )
   {
-    tFilter     = float(now-lastFilter)/1000000.0;
-    lastFilter    = now;
+    lastControl   = now;
   }
   if ( freqResp )
+  {
     analyzing = ( (now-lastFR) >= FR_DELAY && !analyzer->complete() );
+  }
   else
+  {
     analyzing = false;
+  }
 
   // Report that running Freq Resp
   if ( analyzing )
@@ -291,84 +301,77 @@ void loop() {
     digitalWrite(LED_PIN,  0);
   }
 
-  // Interrogate pot; run fast for good tactile feedback
-  // my pot puts out 0- 4096 observed using Tinker
-  checkPot   = reading;
-  if ( checkPot && RESET<1 )
+  // Interrogate inputs
+  if ( control )
   {
-#ifndef BARE_PHOTON
-    potValue = analogRead(POT_PIN);
-    emfValue = analogRead(EMF_PIN);
-    vemf     = double(emfValue)/INSCALE*3.3;
-    pcnf     = fmax(AEMF*vemf*vemf + BEMF*vemf + CEMF, 0.0);
+#ifdef BARE_PHOTON
+    pcnf      = modelFS;
 #else
-    pcnf     = modelF;
+    potValue  = analogRead(POT_PIN);
+    emfValue  = analogRead(EMF_PIN);
+    vemf      = double(emfValue)/INSCALE*F2V_MAX;
+    pcnf      = fmax(P_V4_NF[0] + vemf*(P_V4_NF[1] + vemf*P_V4_NF[2]), 0.0);
 #endif
-    throttle = fmin(double(potValue)/INSCALE*thtlMax, thtlMax);
-    fn[2]    = pcnf;
+    vpot      = fmin(fmax(double(potValue)/INSCALE*POT_MAX, POT_MIN), POT_MAX);
+    fn[2]     = pcnf;
   }
 
   // Control law
-  if ( filter )
+  if ( control )
   {
-    throttle_filt = throttleFilter->calculate(throttle,  RESET);
-    pcnfRef       = fmax(fmin(throttle_filt/thtlMax*30*3.125-1.0*3.125, 27.5*3.125), 0.);
-    // Control law
-    e    = pcnfRef - pcnf;
-    eM   = pcnfRef - modelFS;
-    if ( !closingLoop ) intState = throttle_filt;
-    intState    = fmax(fmin(intState  + Ki*e*updateTime,   thtlMax*1.26), -thtlMax*1.26);
-    throttleCL  = fmax(fmin(intState  + fmax(fmin(Kp*e,    thtlMax*1.26), -thtlMax*1.26), thtlMax), thtlMin);
-    intStateM   = fmax(fmin(intStateM + KiM*eM*updateTime, thtlMax*1.26), -thtlMax*1.26);
-    throttleCLM = fmax(fmin(intStateM + fmax(fmin(KpM*eM,  thtlMax*1.26), -thtlMax*1.26), thtlMax), thtlMin);
-    if ( freqResp )
+    vpot_filt   = throttleFilter->calculate(vpot,  RESET);
+    pcnfRef     = P_P_THTL[0] + vpot_filt*P_P_THTL[1];
+    if ( RESET )
     {
-      fn[0]     = throttle_filt*(1+exciter/20);
+      throttle  = P_NF_NG[0] + pcnfRef*RPM_P*P_NF_NG[1];   // RPM Ng
+      throttle  = exp((throttle+P_LT_NG[0])/P_LT_NG[1]);   // deg throttle
+      intState  = intStateM = throttle;
+      printf(buffer, "t=%s, pcnfRef=%s, throttle=%s\n",
+        String(elapsedTime,6).c_str(), String(pcnfRef).c_str(), String(throttle).c_str());
+      Serial.print(buffer);
+    }
+    e           = pcnfRef - pcnf;
+    eM          = pcnfRef - modelFS;
+    if ( !closingLoop ) intState = vpot_filt;
+    intState    = fmax(fmin(intState  + Ki*e*updateTime,   THTL_MAX*1.26), -THTL_MAX*1.26);
+    throttleCL  = fmax(fmin(intState  + fmax(fmin(Kp*e,    THTL_MAX*1.26), -THTL_MAX*1.26), THTL_MAX), THTL_MIN);
+    intStateM   = fmax(fmin(intStateM + KiM*eM*updateTime, THTL_MAX*1.26), -THTL_MAX*1.26);
+    throttleCLM = fmax(fmin(intStateM + fmax(fmin(KpM*eM,  THTL_MAX*1.26), -THTL_MAX*1.26), THTL_MAX), THTL_MIN);
+    if ( closingLoop )
+    {
+      throttle    = throttleCL;
+      throttleCLM = throttle;
     }
     else
     {
-      if ( closingLoop )
-      {
-        fn[0]     = throttleCL;
-      }
-      else
-      {
-        fn[0]     = throttle_filt;
-      }
+      throttle    = (P_NF_NG[0] + pcnfRef*RPM_P*P_NF_NG[1]);   // RPM Ng
+      throttle    = exp((throttle+P_LT_NG[0])/P_LT_NG[1]) * (1+exciter/20);   // deg throttle
     }
-  }
-
-  // DC model value
-  if ( freqResp )
-  {
-    if ( ttl ) modPcng = fmax((AMDL*fn[0] + BMDL)*fn[0] + CMDL, 0.0);
-  }
-  else
-  {
-    if ( ttl ) modPcng = fmax((AMDL*throttleCLM + BMDL)*throttleCLM + CMDL, 0.0);
+    fn[0] = throttle;
   }
 
   // Model
-  if ( filter )
+  if ( control )
   {
+    if ( RESET )
+      modPcng   = (P_NF_NG[0] + pcnfRef*RPM_P*P_NF_NG[1])/RPM_P;
+    else
+      modPcng   = fmax((P_LT_NG[0] + P_LT_NG[1]*log(throttleCLM)) / RPM_P, 0.0);
     modelE      = modelFilterE->calculate(modPcng, RESET);
     modelG      = modelFilterG->calculate(modelE,  RESET);
-    modelF      = modelFilterF->calculate(modelG,  RESET);
+    modelF      = modelFilterF->calculate((P_NG_NF[0] + modelG*RPM_P*P_NG_NF[1])/RPM_P,  RESET);
     modelFS     = modelFilterV->calculate(modelF,  RESET);
     if ( analyzing ) exciter = analyzer->calculate();  // use previous exciter for everything
-    fn[1]          = modelF;
-    RESET          = 0;
+    fn[1]       = modelFS;
+    if ( elapsedTime>RESEThold ) RESET = 0;
   }
 
 
   // DAC
-  unsigned long deltaT = now - lastControl;
-  control = (deltaT >= CONTROL_DELAY-CLOCK_TCK/2 );
   if ( control  )
   {
     updateTime    = float(deltaT)/1000000.0;
-    lastControl   = now;
-    myservo.write(fn[0]);  // sets the servo position according to the scaled value
+    myservo.write(throttle);  // sets the servo position according to the scaled value
   }
 
   if ( publish )
@@ -376,8 +379,10 @@ void loop() {
     if ( freqResp )
     {
       if (verbose>1) sprintf(buffer, "t=%s, ref=%s, exc=%s, ser=%s, mod=%s, nf=%s, T=%s,",
-        String(elapsedTime,6).c_str(), String(pcnfRef).c_str(), String(exciter).c_str(), String(fn[0]).c_str(),
-        String(fn[1]).c_str(), String(fn[2]).c_str(), String(updateTime,6).c_str());
+        String(elapsedTime,6).c_str(), String(pcnfRef).c_str(),
+        String(exciter).c_str(), String(throttle).c_str(),
+        String(modelFS).c_str(), String(pcnf).c_str(),
+        String(updateTime,6).c_str());
       Serial.print(buffer);
       if( !analyzer->complete() )
       {
@@ -387,12 +392,14 @@ void loop() {
     }  // freqResp
     else
     {
-      if (verbose>1) sprintf(buffer, "t=%s, cl=%s, ref=%s, nf=%s, e=%s, s=%s, ser=%s, :::: ref=%s, nfM=%s, eM=%s, sM=%s, serM=%s, ttl=%s, modPcng=%s, T=%s\n",
-        String(elapsedTime,6).c_str(), String(closingLoop).c_str(), String(pcnfRef).c_str(), String(pcnf).c_str(), String(e).c_str(),
-        String(intState).c_str(), String(throttleCL).c_str(), String(pcnfRef).c_str(), String(modelF).c_str(),
-        String(eM).c_str(), String(intStateM).c_str(), String(throttleCLM).c_str(), String(ttl).c_str(),
+      if (verbose>1) sprintf(buffer, "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n",
+        String(elapsedTime,6).c_str(), String(closingLoop).c_str(),
+        String(pcnfRef).c_str(), String(pcnf).c_str(), String(e).c_str(),
+        String(intState).c_str(), String(throttleCL).c_str(),
+        String(pcnfRef).c_str(), String(modelF).c_str(),
+        String(eM).c_str(), String(intStateM).c_str(), String(throttleCLM).c_str(),
         String(modPcng).c_str(), String(updateTime,6).c_str());
-        Serial.print(buffer);Serial.flush();
+      Serial.print(buffer);
     }
   }  // publish
 }

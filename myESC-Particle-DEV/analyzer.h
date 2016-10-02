@@ -9,7 +9,7 @@ class FRAnalyzer
 {
 public:
   FRAnalyzer();
-  FRAnalyzer(const double omegaLogMin, const int omegaLogMax, const double deltaOmegaLog, const int minCycles,
+  FRAnalyzer(const double omegaLogMin, const double omegaLogMax, const double deltaOmegaLog, const int minCycles,
     const int numInitCycles, const double wSlow, const double T, const double sig[], const int ix[], const int iy[],
     const int nsig, const int ntf);
   ~FRAnalyzer(){};
