@@ -57,7 +57,13 @@ Connections for Arduino:
   1.  USB status
 
   Tasks TODO:
-  1.
+  1.  Use the SerialEvent feature to read
+      a.  f for frequency response:  freeze throttle, no rate limits, sweep, unfreeze
+      b.  s for square wave response:  bias on pcnfref if closed, throttle if open
+  2.  Capture closed loop frequency response, add pcnfref to array
+  3.  Verify freq response again
+  4.  Check against model and tune again
+  5.  Mitigate integrator windup
 
   Revision history:
     31-Aug-2016   DA Gutz   Created
@@ -92,7 +98,7 @@ Connections for Arduino:
 
 // Test features
 extern  const int   verbose         = 2;    // Debug, as much as you can tolerate
-const         bool  freqResp        = false;  // Perform frequency response test on boot
+bool                freqResp        = false;  // Perform frequency response test
 
 // Constants always defined
 // #define CONSTANT
@@ -102,7 +108,7 @@ const         bool  freqResp        = false;  // Perform frequency response test
   #define EMF_PIN          A2                 // Fan speed back-emf input pin on Photon (PC2)
   #define LED_PIN          7                  // Status LED (OD7)
   #define CL_PIN           4                  // GND to close loop (D4 to GND)
-  #define FR_DELAY         40000000UL         // Time to start FR, micros
+  #define FR_DELAY         4000000UL          // Time to start FR, micros
   #define CLOCK_TCK        16UL               // Clock tick resolution, micros
   #define PUBLISH_DELAY    60000UL            // Time between cloud updates (), micros
   #define CONTROL_DELAY    15000UL            // Control law wait (), micros
@@ -113,7 +119,7 @@ const         bool  freqResp        = false;  // Perform frequency response test
   #define EMF_PIN          A2                 // Fan speed back-emf input pin on Photon (A2)
   #define LED_PIN          D7                 // Status LED
   #define CL_PIN           D0                 // 3.3v to close loop (D0)
-  #define FR_DELAY         40000000UL         // Time to start FR, micros
+  #define FR_DELAY         4000000UL          // Time to start FR, micros
   #define CLOCK_TCK        8UL                // Clock tick resolution, micros
   #define PUBLISH_DELAY    40000UL            // Time between cloud updates (), micros
   #define CONTROL_DELAY    10000UL            // Control law wait (), micros
@@ -148,10 +154,13 @@ double              throttleM       = 0;      // Modeled servo value, 0-179 degr
 double              throttleL       = 0;      // Limited servo value, 0-179 degrees
 double              throttleML      = 0;      // Limited modeled servo value, 0-179 degrees
 double              updateTime      = 0.0;    // Control law update time, sec
-double              fn[3]           = {0, 0, 0}; // Functions to analyze
-const int           ix[2]           = {0, 0}; // Indeces of fn to excitations
-const int           iy[2]           = {1, 2}; // Indeces of fn to responses
+double              fn[4]           = {0, 0, 0, 0}; // Functions to analyze
+const int           ix[4]           = {0, 0, 3, 3}; // Indeces of fn to excitations
+const int           iy[4]           = {1, 2, 1, 2}; // Indeces of fn to responses
 
+// Serial event stuff
+String inputString = "";         // a string to hold incoming data
+boolean stringComplete = false;  // whether the string is complete
 
 
 void setup()
@@ -173,7 +182,7 @@ void setup()
   modelFilterG    = new LagTustin(    T, tauG, -0.1, 0.1);
   modelFilterF    = new LagTustin(    T, tauF, -0.1, 0.1);
   modelFilterV    = new LagTustin(    T, tauV, -0.1, 0.1);
-  analyzer        = new FRAnalyzer(-0.8, 2.3, 0.1,    2,    6,     1/tauG, double(CONTROL_DELAY/1e6), fn, ix, iy, 3, 2);
+  analyzer        = new FRAnalyzer(-0.8, 2.3, 0.1,    2,    6,     1/tauG, double(CONTROL_DELAY/1e6), fn, ix, iy, 4, 4);
   //                               wmin  wmax dw      minCy iniCy  wSlow
   delay(1000);
   if (verbose>1) sprintf(buffer,"\nCalibrating ESC...");
@@ -203,6 +212,9 @@ void setup()
     sprintf(buffer, "time,cl,pcnfref,pcnf,err,state,thr,pcnfrefM,pcnfM,errM,stateM,thrM,modPcng,T\n");
     Serial.print(buffer);Serial.flush();
   }
+
+  // Serial Event
+  inputString.reserve(200);   // Reserve 200 bytes for inputString
 
   delay(1000);
 }
@@ -304,6 +316,22 @@ void loop() {
     digitalWrite(LED_PIN,  0);
   }
 
+
+  // Serial event  (terminate Send String data with 0A using CoolTerm)
+  if ( stringComplete )
+  {
+    String doFR = "f\n";
+    if ( inputString == doFR ) {
+       Serial.print(inputString);
+       Serial.print(doFR);
+       Serial.println(":");
+       freqResp = true;
+    }
+    inputString = "";
+    stringComplete  = false;
+  }
+
+
   // Interrogate inputs
   if ( control )
   {
@@ -323,7 +351,11 @@ void loop() {
   if ( control )
   {
     vpot_filt   = throttleFilter->calculate(vpot,  RESET);
-    if ( closingLoop )pcnfRef     = P_P_PNF[0]  + vpot_filt*P_P_PNF[1];
+    if ( closingLoop )
+    {
+      pcnfRef     = P_P_PNF[0]  + vpot_filt*P_P_PNF[1];
+      if ( freqResp ) pcnfRef *= (1+exciter/20);
+    }
     else              pcnfRef     = P_P_THTL[0] + vpot_filt*P_P_THTL[1];
     if ( RESET )
     {
@@ -346,13 +378,13 @@ void loop() {
      // Apply rate limits as needed
       if ( RESET )
       {
-        throttleL  = fmax(fmin(throttleU,   throttleL+SCMAXI),   throttleL-SCMAXI);      
-        throttleML = fmax(fmin(throttleMU,  throttleML+SCMAXI),  throttleML-SCMAXI);      
+        throttleL  = fmax(fmin(throttleU,   throttleL+SCMAXI),   throttleL-SCMAXI);
+        throttleML = fmax(fmin(throttleMU,  throttleML+SCMAXI),  throttleML-SCMAXI);
       }
       else
       {
-        throttleL  = fmax(fmin(throttleU,   throttleL+SCMAX),   throttleL-SCMAX);      
-        throttleML = fmax(fmin(throttleMU,  throttleML+SCMAX),  throttleML-SCMAX);      
+        throttleL  = fmax(fmin(throttleU,   throttleL+SCMAX),   throttleL-SCMAX);
+        throttleML = fmax(fmin(throttleMU,  throttleML+SCMAX),  throttleML-SCMAX);
       }
       throttle  = throttleL;
       throttleM = throttleML;
@@ -364,13 +396,14 @@ void loop() {
       // Apply rate limits as needed
       if ( RESET )
       {
-        throttleL = throttleML = fmax(fmin(throttleU, throttleL+SCMAX), throttleL-SCMAX);      
+        throttleL = throttleML = fmax(fmin(throttleU, throttleL+SCMAX), throttleL-SCMAX);
       }
       else
       {
         throttleL   = throttleU;
       }
-      throttle  = throttleM = throttleL;
+      if ( freqResp ) throttle = throttleM  = throttleU* (1+exciter/20);
+      else            throttle  = throttleM = throttleL;
     }
     fn[0] = throttle;
   }
@@ -388,6 +421,7 @@ void loop() {
     modelFS     = modelFilterV->calculate(modelF,  RESET);
     if ( analyzing ) exciter = analyzer->calculate();  // use previous exciter for everything
     fn[1]       = modelFS;
+    fn[3]       = pcnfRef;
     if ( elapsedTime>RESEThold ) RESET = 0;
   }
 
@@ -427,4 +461,26 @@ void loop() {
       Serial.print(buffer);Serial.flush();
     }
   }  // publish
+  if ( analyzer->complete() ) freqResp = false;
+}
+
+
+/*
+  SerialEvent occurs whenever a new data comes in the
+ hardware serial RX.  This routine is run between each
+ time loop() runs, so using delay inside loop can delay
+ response.  Multiple bytes of data may be available.
+ */
+void serialEvent() {
+  while (Serial.available()) {
+    // get the new byte:
+    char inChar = (char)Serial.read();
+    // add it to the inputString:
+    inputString += inChar;
+    // if the incoming character is a newline, set a flag
+    // so the main loop can do something about it:
+    if (inChar == '\n') {
+      stringComplete = true;
+    }
+  }
 }
