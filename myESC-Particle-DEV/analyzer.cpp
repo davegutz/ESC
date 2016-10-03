@@ -247,4 +247,3 @@ void FRAnalyzer::publish()
   String(iResults_).c_str(), String(iTargetResults_).c_str());
   Serial.print(buffer);
 }
-

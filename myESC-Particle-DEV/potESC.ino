@@ -96,7 +96,7 @@ Connections for Arduino:
 //
 // Disable flags if needed.  Usually commented
 // #define DISABLE
-//#define BARE_PHOTON                       // Run bare photon for testing.  Bare photon without this goes dark or hangs trying to write to I2C
+#define BARE_PHOTON                       // Run bare photon for testing.  Bare photon without this goes dark or hangs trying to write to I2C
 
 // Test features
 extern  const int   verbose         = 2;    // Debug, as much as you can tolerate (2)
@@ -303,6 +303,7 @@ void loop() {
   if ( buttonState == HIGH && (now-lastButton>2000000UL ) )
   {
     lastButton = now;
+    analyzer->complete(freqResp);  // reset if doing freqResp
     freqResp = !freqResp;
   }
 #endif
@@ -345,7 +346,8 @@ void loop() {
        Serial.print(inputString);
        Serial.print(doFR);
        Serial.println(":");
-       freqResp = true;
+       analyzer->complete(freqResp);  // reset if doing freqResp
+       freqResp = !freqResp;
     }
     inputString = "";
     stringComplete  = false;

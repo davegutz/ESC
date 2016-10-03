@@ -18,6 +18,17 @@ public:
   double  calculate(void);
   bool    complete(void){return(complete_);};
   double  omega(void){return(omega_);};
+  void    complete(const bool set)
+  {
+    frMode_           = WAI;
+    iResults_         = 0;
+    iOmega_           = 0;
+    timeAtOmega_      = 0;
+    omegaLog_         = omegaLogMin_;
+    timeAtOmega_      = 0;
+    timeTargetOmega_  = 0;
+    complete_         = set;
+  };
   void    publish(void);
 private:
   double  calculateINI_(void);
