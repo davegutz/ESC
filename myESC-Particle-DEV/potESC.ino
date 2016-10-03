@@ -34,10 +34,12 @@ Connections for Arduino:
   EMF F2V-----------------Arduino
     V5/V10----------------Analog In A2
     GND-------------------GND
-  POT---------------------Photon
+  POT---------------------Arduino
     VHI ------------------VIN
     VLO ------------------GND
     WIPE -----------------Analog In A0
+  BUTTON ----------------Ardunio  D2
+    see https://www.arduino.cc/en/Tutorial/Button
   LED to indicate frequency response----Digital Output (7)
   JUMPER---------------4 to GND for Closed Loop
   Hardware Platform:
@@ -97,12 +99,13 @@ Connections for Arduino:
 //#define BARE_PHOTON                       // Run bare photon for testing.  Bare photon without this goes dark or hangs trying to write to I2C
 
 // Test features
-extern  const int   verbose         = 2;    // Debug, as much as you can tolerate
+extern  const int   verbose         = 2;    // Debug, as much as you can tolerate (2)
 bool                freqResp        = false;  // Perform frequency response test
 
 // Constants always defined
 // #define CONSTANT
 #ifdef ARDUINO
+  #define BUTTON_PIN       2                  // Button input (D2)
   #define PWM_PIN          5                  // PWM output (PD5)
   #define POT_PIN          A0                 // Potentiometer input pin on Photon (PC0)
   #define EMF_PIN          A2                 // Fan speed back-emf input pin on Photon (PC2)
@@ -159,14 +162,17 @@ const int           ix[4]           = {0, 0, 3, 3}; // Indeces of fn to excitati
 const int           iy[4]           = {1, 2, 1, 2}; // Indeces of fn to responses
 
 // Serial event stuff
-String inputString = "";         // a string to hold incoming data
-boolean stringComplete = false;  // whether the string is complete
-
+#ifndef ARDUINO
+  String inputString = "";         // a string to hold incoming data
+  boolean stringComplete = false;  // whether the string is complete
+#endif
 
 void setup()
 {
 #ifndef ARDUINO
   WiFi.disconnect();
+#else
+  pinMode(BUTTON_PIN, INPUT);
 #endif
   Serial.begin(230400);
   myservo.attach(PWM_PIN);  // attaches the servo.  Only supported on pins that have PWM
@@ -214,7 +220,9 @@ void setup()
   }
 
   // Serial Event
+#ifndef ARDUINO
   inputString.reserve(200);   // Reserve 200 bytes for inputString
+#endif
 
   delay(1000);
 }
@@ -222,6 +230,9 @@ void setup()
 
 
 void loop() {
+#ifdef ARDUINO
+  int                     buttonState = 0;    // Pushbutton
+#endif
   bool                    closingLoop = false;// Closing loop by pin cmd, T/F
   bool                    control;            // Control sequence, T/F
   bool                    publish;            // Publish, T/F
@@ -233,6 +244,7 @@ void loop() {
   static double           intStateM    = 0;   // PI control integrate state for model, deg
   static unsigned long    lastControl  = 0UL; // Last control law time, micros
   static unsigned long    lastPublish  = 0UL; // Last publish time, micros
+  static unsigned long    lastButton   = 0UL; // Last button push time, micros
   static unsigned long    lastFR       = 0UL; // Last analyzing, micros
   static double           modPcng      = 0;   // Modeled pcng ref after esc ttl delay, %Nf
   static double           pcnfRef      = 0;   // Fan speed closed loop reference, %Nf
@@ -286,6 +298,14 @@ void loop() {
 #else
   closingLoop = digitalRead(CL_PIN) == LOW;
 #endif
+#ifdef ARDUINO
+  buttonState = digitalRead(BUTTON_PIN);
+  if ( buttonState == HIGH && (now-lastButton>2000000UL ) )
+  {
+    lastButton = now;
+    freqResp = !freqResp;
+  }
+#endif
   publish   = ((now-lastPublish) >= PUBLISH_DELAY-CLOCK_TCK/2 );
   if ( publish )
   {
@@ -316,7 +336,7 @@ void loop() {
     digitalWrite(LED_PIN,  0);
   }
 
-
+#ifndef ARDUINO
   // Serial event  (terminate Send String data with 0A using CoolTerm)
   if ( stringComplete )
   {
@@ -330,7 +350,7 @@ void loop() {
     inputString = "";
     stringComplete  = false;
   }
-
+#endif
 
   // Interrogate inputs
   if ( control )
@@ -471,6 +491,7 @@ void loop() {
  time loop() runs, so using delay inside loop can delay
  response.  Multiple bytes of data may be available.
  */
+#ifndef ARDUINO
 void serialEvent() {
   while (Serial.available()) {
     // get the new byte:
@@ -484,3 +505,4 @@ void serialEvent() {
     }
   }
 }
+#endif
