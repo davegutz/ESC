@@ -14,14 +14,14 @@ extern char buffer[256];
 
 FRAnalyzer::FRAnalyzer(const double omegaLogMin, const double omegaLogMax,
   const double deltaOmegaLog, const int minCycles, const int numInitCycles,
-  const double wSlow, const double T, const double sig[], const int ix[],
-  const int iy[], const int nsig, const int ntf)
+  const double wSlow, const double T, const double *sig, const int ix[],
+  const int iy[], const int nsig, const int ntf, const String inHeader)
   : aint_(0), complete_(false), cosOmT_(0), deltaOmegaLog_(deltaOmegaLog),
   excite_(0), iOmega_(0), iResults_(0UL), iTargetOmega_(0), iTargetResults_(0UL),
   minCycles_(minCycles), nsig_(nsig), ntf_(ntf), numCycles_(0), omega_(0),
   omegaLog_(omegaLogMin), omegaLogMax_(omegaLogMax), omegaLogMin_(omegaLogMin),
   sig_(sig), sinOmT_(0), T_(T), timeAtOmega_(0), timeTargetOmega_(0),
-  timeTotalSweep_(0), Tlog_(log10(T)), wSlow_(wSlow)
+  timeTotalSweep_(0), Tlog_(log10(T)), wSlow_(wSlow), inHeader_(inHeader)
 {
 
   // Initialize arrays
@@ -52,13 +52,6 @@ FRAnalyzer::FRAnalyzer(const double omegaLogMin, const double omegaLogMax,
   }
   initializeSET_();
   frMode_     = WAI;
-#ifndef ARDUINO
-  Serial.printf("Number points = %ld, timeTotalSweep_=%5.2f", iTargetResults_, timeTotalSweep_);
-#else
-  char printf[256];
-  sprintf(printf, "Number points = %s, timeTotalSweep_=%s", String(iTargetResults_).c_str(), String(timeTotalSweep_).c_str());
-  Serial.print(printf);
-#endif
 }
 
 // Restart frequency response
@@ -93,6 +86,11 @@ void FRAnalyzer::initializeINI_(void)
   iTargetOmega_     += iTargetOmega_/numCycles_/4;  // Add 1/4 cycle to start @ -1
   iOmega_           = 0;
   timeTargetOmega_  = iTargetOmega_*T_;
+  // Headers
+  sprintf(buffer, "Number points = %s, timeTotalSweep_=%s\n", String(iTargetResults_).c_str(), String(timeTotalSweep_).c_str());
+  Serial.print(buffer);
+  sprintf(buffer, "%s,Mode,omegaLog,numCycles,omega,iOmega,iTargetOmega,timeAtOmega,timeTargetOmega,iResults,targetResults\n", inHeader_.c_str());
+  Serial.print(buffer);
 }
 
 // Initialize for frequency point (RUN)
@@ -111,6 +109,7 @@ void FRAnalyzer::initializeRUN_(void)
     a1_[isig]    = 0.;
     b1_[isig]    = 0.;
   }
+
 }
 
 // Calculate frequency and iterations for exact transition precision between frequency points
@@ -258,7 +257,7 @@ double FRAnalyzer::runIntegrate_(void)
 // Display results
 void FRAnalyzer::publish()
 {
-  sprintf(buffer, "M=%s, omegaLog=%s, numCycles=%s, omega=%s, iOmega=%s/%s, timeAtOmega=%s/%s, iResults=%s/%s",
+  sprintf(buffer, "%s,%s,%s,%s,%s/%s,%s/%s,%s/%s",
   String(frMode_).c_str(), String(omegaLog_).c_str(), String(numCycles_).c_str(), String(omega_).c_str(),
   String(iOmega_).c_str(), String(iTargetOmega_).c_str(), String(timeAtOmega_).c_str(), String(timeTargetOmega_).c_str(),
   String(iResults_).c_str(), String(iTargetResults_).c_str());

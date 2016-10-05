@@ -190,7 +190,8 @@ void setup()
   modelFilterV    = new LagTustin(    T, tauV, -0.1, 0.1);
   // analyzer        = new FRAnalyzer(-0.8, 2.3, 0.1,    2,    6,     1/tauG, double(CONTROL_DELAY/1e6), fn, ix, iy, 4, 4);
   //analyzer        = new FRAnalyzer(-0.8, 2.3, 0.1,    2,    6,     1/tauG, double(CONTROL_DELAY/1e6), fn, ix, iy, 4, 2);
-  analyzer        = new FRAnalyzer(1, 1.3, 0.1,    2,    6,     1/tauG, double(CONTROL_DELAY/1e6), fn, ix, iy, 4, 2);
+  analyzer        = new FRAnalyzer(1, 1.3, 0.1,    2,    6,     1/tauG, double(CONTROL_DELAY/1e6), fn, ix, iy, 4, 2, "t,ref,exc,thr,mod,nf,T");
+
   //                               wmin  wmax dw      minCy iniCy  wSlow
   delay(1000);
   if (verbose>1) sprintf(buffer,"\nCalibrating ESC...");
@@ -461,12 +462,12 @@ void loop() {
   {
     if ( freqResp )
     {
-      if (verbose>1) sprintf(buffer, "t=%s, ref=%s, exc=%s, thr=%s, mod=%s, nf=%s, T=%s,",
+      sprintf(buffer, "%s,%s,%s,%s,%s,%s,%s,",
         String(elapsedTime,6).c_str(), String(pcnfRef).c_str(),
         String(exciter).c_str(), String(throttle).c_str(),
         String(modelFS).c_str(), String(pcnf).c_str(),
         String(updateTime,6).c_str());
-      Serial.print(buffer);Serial.flush();
+      Serial.print(buffer);
       if( !analyzer->complete() )
       {
         analyzer->publish();

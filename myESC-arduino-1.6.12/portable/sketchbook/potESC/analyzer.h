@@ -10,14 +10,15 @@ class FRAnalyzer
 public:
   FRAnalyzer();
   FRAnalyzer(const double omegaLogMin, const double omegaLogMax, const double deltaOmegaLog, const int minCycles,
-    const int numInitCycles, const double wSlow, const double T, const double sig[], const int ix[], const int iy[],
-    const int nsig, const int ntf);
+    const int numInitCycles, const double wSlow, const double T, const double *sig, const int ix[], const int iy[],
+    const int nsig, const int ntf, const String inHeader);
   ~FRAnalyzer(){};
   // operators
   // functions
   double  calculate(void);
   bool    complete(void){return(complete_);};
   double  omega(void){return(omega_);};
+  void    complete(const bool set);
   void    publish(void);
 private:
   double  calculateINI_(void);
@@ -36,6 +37,7 @@ private:
   bool          complete_;      // If done, T/F
   double        deltaOmegaLog_; // Delta log10(frequency, r/s) in sweep
   double        excite_;        // Excitation, fraction [-0.5, 0.5]
+  String        inHeader_;      // csv header prior to fr data
   unsigned long iOmega_;			  // Current time step number at frequency
   unsigned int  iResults_; 	    // Current number of results
   unsigned long iTargetOmega_;  // Time step target at frequency
