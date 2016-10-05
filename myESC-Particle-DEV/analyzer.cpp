@@ -12,12 +12,16 @@ extern char buffer[256];
 
 //Class FRAnalyzer
 
-FRAnalyzer::FRAnalyzer(const double omegaLogMin, const double omegaLogMax, const double deltaOmegaLog, const int minCycles,
-  const int numInitCycles, const double wSlow, const double T, const double sig[], const int ix[], const int iy[], const int nsig, const int ntf)
-  : aint_(0), complete_(false), cosOmT_(0), deltaOmegaLog_(deltaOmegaLog), excite_(0), iOmega_(0), iResults_(0UL),
-  iTargetOmega_(0), iTargetResults_(0UL), minCycles_(minCycles), nsig_(nsig), ntf_(ntf), numCycles_(0),
-  omega_(0), omegaLog_(omegaLogMin), omegaLogMax_(omegaLogMax), omegaLogMin_(omegaLogMin), sig_(sig), sinOmT_(0), T_(T),
-  timeAtOmega_(0), timeTargetOmega_(0), timeTotalSweep_(0), Tlog_(log10(T)), wSlow_(wSlow)
+FRAnalyzer::FRAnalyzer(const double omegaLogMin, const double omegaLogMax,
+  const double deltaOmegaLog, const int minCycles, const int numInitCycles,
+  const double wSlow, const double T, const double sig[], const int ix[],
+  const int iy[], const int nsig, const int ntf)
+  : aint_(0), complete_(false), cosOmT_(0), deltaOmegaLog_(deltaOmegaLog),
+  excite_(0), iOmega_(0), iResults_(0UL), iTargetOmega_(0), iTargetResults_(0UL),
+  minCycles_(minCycles), nsig_(nsig), ntf_(ntf), numCycles_(0), omega_(0),
+  omegaLog_(omegaLogMin), omegaLogMax_(omegaLogMax), omegaLogMin_(omegaLogMin),
+  sig_(sig), sinOmT_(0), T_(T), timeAtOmega_(0), timeTargetOmega_(0),
+  timeTotalSweep_(0), Tlog_(log10(T)), wSlow_(wSlow)
 {
 
   // Initialize arrays
@@ -56,6 +60,19 @@ FRAnalyzer::FRAnalyzer(const double omegaLogMin, const double omegaLogMax, const
   Serial.print(printf);
 #endif
 }
+
+// Restart frequency response
+void    FRAnalyzer::complete(const bool set)
+{
+  frMode_           = WAI;
+  iResults_         = 0;
+  iOmega_           = 0;
+  timeAtOmega_      = 0;
+  omegaLog_         = omegaLogMin_;
+  timeAtOmega_      = 0;
+  timeTargetOmega_  = 0;
+  complete_         = false;
+};
 
 // Initialize for settling (SET)
 void FRAnalyzer::initializeSET_(void)
@@ -215,8 +232,8 @@ double FRAnalyzer::runIntegrate_(void)
     iResults_++;
     for(int isig = 0; isig < nsig_; isig++)
     {
-      a1_[isig]    = a1_[isig] * T_ * omega_ / pi / numCycles_;
-      b1_[isig]    = b1_[isig] * T_ * omega_ / pi / numCycles_;
+      a1_[isig]    *= T_ * omega_ / pi / numCycles_;
+      b1_[isig]    *= T_ * omega_ / pi / numCycles_;
     }
     // Compute signal mag and phase.
     for(int isig = 0; isig < nsig_; isig++)
@@ -224,17 +241,17 @@ double FRAnalyzer::runIntegrate_(void)
       sigGain_[isig]    = 20. * log10( sqrt(a1_[isig]*a1_[isig] + b1_[isig]*b1_[isig]) );
       sigPhas_[isig]    = 180. / pi * atan2(a1_[isig], b1_[isig]);
     }
-      // Compute transfer function mag and phase and print results.
-      sprintf(buffer, "% s", String(omega_).c_str());
+    // Compute transfer function mag and phase and print results.
+    sprintf(buffer, "fr,%s,", String(omega_).c_str());
+    Serial.print(buffer);
+    for(int itf = 0; itf < ntf_; itf++)
+    {
+      transGain_[itf]     = sigGain_[iy_[itf]]  - sigGain_[ix_[itf]];
+      transPhas_[itf]     = sigPhas_[iy_[itf]]  - sigPhas_[ix_[itf]];
+      sprintf(buffer, "%s,%s,", String(transGain_[itf]).c_str(), String(transPhas_[itf]).c_str());
       Serial.print(buffer);
-      for(int itf = 0; itf < ntf_; itf++)
-      {
-        transGain_[itf]     = sigGain_[iy_[itf]]  - sigGain_[ix_[itf]];
-        transPhas_[itf]     = sigPhas_[iy_[itf]]  - sigPhas_[ix_[itf]];
-        sprintf(buffer, " %s %s", String(transGain_[itf]).c_str(), String(transPhas_[itf]).c_str());
-        Serial.print(buffer);
-      }
-      Serial.println("");
+    }
+    Serial.println("");
   }
 }
 

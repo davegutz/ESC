@@ -158,8 +158,8 @@ double              throttleL       = 0;      // Limited servo value, 0-179 degr
 double              throttleML      = 0;      // Limited modeled servo value, 0-179 degrees
 double              updateTime      = 0.0;    // Control law update time, sec
 double              fn[4]           = {0, 0, 0, 0}; // Functions to analyze
-const int           ix[4]           = {0, 0, 3, 3}; // Indeces of fn to excitations
-const int           iy[4]           = {1, 2, 1, 2}; // Indeces of fn to responses
+const int           ix[2]           = {0, 0}; // Indeces of fn to excitations
+const int           iy[2]           = {1, 2}; // Indeces of fn to responses
 
 // Serial event stuff
 #ifndef ARDUINO
@@ -188,7 +188,9 @@ void setup()
   modelFilterG    = new LagTustin(    T, tauG, -0.1, 0.1);
   modelFilterF    = new LagTustin(    T, tauF, -0.1, 0.1);
   modelFilterV    = new LagTustin(    T, tauV, -0.1, 0.1);
-  analyzer        = new FRAnalyzer(-0.8, 2.3, 0.1,    2,    6,     1/tauG, double(CONTROL_DELAY/1e6), fn, ix, iy, 4, 4);
+  // analyzer        = new FRAnalyzer(-0.8, 2.3, 0.1,    2,    6,     1/tauG, double(CONTROL_DELAY/1e6), fn, ix, iy, 4, 4);
+  //analyzer        = new FRAnalyzer(-0.8, 2.3, 0.1,    2,    6,     1/tauG, double(CONTROL_DELAY/1e6), fn, ix, iy, 4, 2);
+  analyzer        = new FRAnalyzer(1, 1.3, 0.1,    2,    6,     1/tauG, double(CONTROL_DELAY/1e6), fn, ix, iy, 4, 2);
   //                               wmin  wmax dw      minCy iniCy  wSlow
   delay(1000);
   if (verbose>1) sprintf(buffer,"\nCalibrating ESC...");
