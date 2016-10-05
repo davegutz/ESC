@@ -96,7 +96,7 @@ Connections for Arduino:
 //
 // Disable flags if needed.  Usually commented
 // #define DISABLE
-#define BARE_PHOTON                       // Run bare photon for testing.  Bare photon without this goes dark or hangs trying to write to I2C
+//#define BARE_PHOTON                       // Run bare photon for testing.  Bare photon without this goes dark or hangs trying to write to I2C
 
 // Test features
 extern  const int   verbose         = 2;    // Debug, as much as you can tolerate (2)
@@ -105,12 +105,11 @@ bool                freqResp        = false;  // Perform frequency response test
 // Constants always defined
 // #define CONSTANT
 #ifdef ARDUINO
-  #define BUTTON_PIN       2                  // Button input (D2)
+  #define BUTTON_PIN       2                  // Button 3-way input momentary 5V, steady GND (D2)
   #define PWM_PIN          5                  // PWM output (PD5)
   #define POT_PIN          A0                 // Potentiometer input pin on Photon (PC0)
   #define EMF_PIN          A2                 // Fan speed back-emf input pin on Photon (PC2)
-  #define LED_PIN          7                  // Status LED (OD7)
-  #define CL_PIN           4                  // GND to close loop (D4 to GND)
+  #define CL_PIN           4                  // Closed loop 3-way switch 5V or GND (D4 to GND)
   #define FR_DELAY         4000000UL          // Time to start FR, micros
   #define CLOCK_TCK        16UL               // Clock tick resolution, micros
   #define PUBLISH_DELAY    60000UL            // Time between cloud updates (), micros
@@ -121,7 +120,7 @@ bool                freqResp        = false;  // Perform frequency response test
   #define POT_PIN          A0                 // Potentiometer input pin on Photon (A0)
   #define EMF_PIN          A2                 // Fan speed back-emf input pin on Photon (A2)
   #define LED_PIN          D7                 // Status LED
-  #define CL_PIN           D0                 // 3.3v to close loop (D0)
+  #define CL_PIN           D0                 // Closed loop 3-way switch 5V or GND  (D0)
   #define FR_DELAY         4000000UL          // Time to start FR, micros
   #define CLOCK_TCK        8UL                // Clock tick resolution, micros
   #define PUBLISH_DELAY    40000UL            // Time between cloud updates (), micros
@@ -171,6 +170,7 @@ void setup()
 {
 #ifndef ARDUINO
   WiFi.disconnect();
+  pinMode(LED_PIN, OUTPUT);
 #else
   pinMode(BUTTON_PIN, INPUT);
 #endif
@@ -178,7 +178,6 @@ void setup()
   myservo.attach(PWM_PIN);  // attaches the servo.  Only supported on pins that have PWM
   pinMode(POT_PIN, INPUT);
   pinMode(EMF_PIN, INPUT);
-  pinMode(LED_PIN, OUTPUT);
   pinMode(CL_PIN,  INPUT);
 
   // Lag filter
@@ -190,9 +189,10 @@ void setup()
   modelFilterV    = new LagTustin(    T, tauV, -0.1, 0.1);
   // analyzer        = new FRAnalyzer(-0.8, 2.3, 0.1,    2,    6,     1/tauG, double(CONTROL_DELAY/1e6), fn, ix, iy, 4, 4);
   //analyzer        = new FRAnalyzer(-0.8, 2.3, 0.1,    2,    6,     1/tauG, double(CONTROL_DELAY/1e6), fn, ix, iy, 4, 2);
-  analyzer        = new FRAnalyzer(1, 1.3, 0.1,    2,    6,     1/tauG, double(CONTROL_DELAY/1e6), fn, ix, iy, 4, 2, "t,ref,exc,thr,mod,nf,T");
-
-  //                               wmin  wmax dw      minCy iniCy  wSlow
+  //analyzer        = new FRAnalyzer(1, 1.3, 0.1,    2,    6,     1/tauG, double(CONTROL_DELAY/1e6), fn, ix, iy, 4, 2, "t,ref,exc,thr,mod,nf,T");
+  analyzer        = new FRAnalyzer(-0.8, 2.3, 0.1,    2,    6,     1/tauG, double(CONTROL_DELAY/1e6), fn, ix, iy, 4, 2, "t,ref,exc,thr,mod,nf,T");
+ //                               wmin  wmax dw      minCy iniCy  wSlow
+ // 2.3 is Nyquist for T=.015
   delay(1000);
   if (verbose>1) sprintf(buffer,"\nCalibrating ESC...");
   Serial.print(buffer);
@@ -299,7 +299,7 @@ void loop() {
 #ifdef BARE_PHOTON
   closingLoop = true;
 #else
-  closingLoop = digitalRead(CL_PIN) == LOW;
+  closingLoop = (digitalRead(CL_PIN) == HIGH);
 #endif
 #ifdef ARDUINO
   buttonState = digitalRead(BUTTON_PIN);
@@ -331,6 +331,7 @@ void loop() {
   }
 
   // Report that running Freq Resp
+#ifndef ARDUINO
   if ( analyzing )
   {
     digitalWrite(LED_PIN,  1);
@@ -340,7 +341,6 @@ void loop() {
     digitalWrite(LED_PIN,  0);
   }
 
-#ifndef ARDUINO
   // Serial event  (terminate Send String data with 0A using CoolTerm)
   if ( stringComplete )
   {
