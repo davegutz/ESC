@@ -193,19 +193,19 @@ void setup()
   analyzer        = new FRAnalyzer(-0.8, 2.3, 0.1,    2,    6,     1/tauG, double(CONTROL_DELAY/1e6), fn, ix, iy, 4, 2, "t,ref,exc,thr,mod,nf,T");
  //                               wmin  wmax dw      minCy iniCy  wSlow
  // 2.3 is Nyquist for T=.015
-  delay(1000);
   if (verbose>1) sprintf(buffer,"\nCalibrating ESC...");
   Serial.print(buffer);
+  throttle = -10;
   while (throttle<179)
   {
-    throttle = min(179, throttle+10);
+    throttle = min(179, throttle+2);
     myservo.write(throttle);
     delay(20);
   }
   delay(1000);
   while (throttle>0)
   {
-    throttle = max(0, throttle-10);
+    throttle = max(0, throttle-2);
     myservo.write(throttle);
     delay(20);
   }  if (verbose>1) Serial.println("Done.");
