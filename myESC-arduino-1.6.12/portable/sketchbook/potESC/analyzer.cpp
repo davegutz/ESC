@@ -1,8 +1,8 @@
 // Standard
-#ifndef ARDUINO
-  #include "application.h"      // Should not be needed if file .ino or Arduino
-#else
+#ifdef ARDUINO
   #include <Arduino.h> //needed for Serial.println
+#else
+  #include "application.h"      // Should not be needed if file .ino or Arduino
 #endif
 #include "analyzer.h"
 #include "math.h"
@@ -14,43 +14,70 @@ extern char buffer[256];
 
 FRAnalyzer::FRAnalyzer(const double omegaLogMin, const double omegaLogMax,
   const double deltaOmegaLog, const int minCycles, const int numInitCycles,
-  const double wSlow, const double T, const double *sig, const int ix[],
+  const double wSlow, const double T, const int ix[],
   const int iy[], const int nsig, const int ntf, const String inHeader)
-  : aint_(0), complete_(false), cosOmT_(0), deltaOmegaLog_(deltaOmegaLog),
-  excite_(0), iOmega_(0), iResults_(0UL), iTargetOmega_(0), iTargetResults_(0UL),
-  minCycles_(minCycles), nsig_(nsig), ntf_(ntf), numCycles_(0), omega_(0),
-  omegaLog_(omegaLogMin), omegaLogMax_(omegaLogMax), omegaLogMin_(omegaLogMin),
-  sig_(sig), sinOmT_(0), T_(T), timeAtOmega_(0), timeTargetOmega_(0),
-  timeTotalSweep_(0), Tlog_(log10(T)), wSlow_(wSlow), inHeader_(inHeader)
 {
+  aint_           = 0;
+  complete_       = false;
+  cosOmT_         = 0;
+  deltaOmegaLog_  = deltaOmegaLog;
+  excite_         = 0;
+  iOmega_         = 0;
+  iResults_       = 0UL;
+  iTargetOmega_   = 0;
+  iTargetResults_ =0U;
+  minCycles_      = minCycles;
+  nsig_           = nsig;
+  ntf_            = ntf;
+  numCycles_      = 0;
+  omega_          = 0;
+  omegaLog_       = omegaLogMin;
+  omegaLogMax_    = omegaLogMax;
+  omegaLogMin_    = omegaLogMin;
+  sinOmT_         = 0;
+  T_              = T;
+  timeAtOmega_    = 0;
+  timeTargetOmega_= 0;
+  timeTotalSweep_ = 0;
+  Tlog_           = log10(T);
+  wSlow_          = wSlow;
+  inHeader_       = inHeader;
 
   // Initialize arrays
   a1_         = new double[nsig_];
   b1_         = new double[nsig_];
   ix_         = new unsigned int[ntf_]; for (int i=0; i<ntf_; i++) ix_[i] = ix[i];
   iy_         = new unsigned int[ntf_]; for (int i=0; i<ntf_; i++) iy_[i] = iy[i];
+  sig_        = new double[nsig_];
   sigGain_    = new double[nsig_];
   sigPhas_    = new double[nsig_];
   transGain_  = new double[ntf_];
   transPhas_  = new double[ntf_];
 
   // Calculate run time and number of points
-  iTargetResults_  = (int)((omegaLogMax_ - omegaLogMin_) / deltaOmegaLog_ + .5) + 1;
-  for(int iResults = -2; iResults < iTargetResults_; iResults++){
-      switch ( iResults )
-      {
-        case -2:
-          initializeSET_();
-          break;
-        case -1:
-          initializeINI_();
-          break;
-        default:
-          initializeRUN_();
-      }
-      timeTotalSweep_   += iTargetOmega_ * T_;
+  iTargetResults_  = (unsigned int)((omegaLogMax_ - omegaLogMin_) / deltaOmegaLog_ + .5) + 1;
+  int iResults = -2;
+  while( iResults < (int)iTargetResults_ )
+  {
+    switch ( iResults )
+    {
+      case -2:
+        initializeSET_();
+        break;
+      case -1:
+        initializeINI_();
+        break;
+      default:
+        initializeRUN_();
+    }
+    timeTotalSweep_   += iTargetOmega_ * T_;
+    iResults++;
   }
   initializeSET_();
+  sprintf(buffer, "Number points = %s, timeTotalSweep_=%s\n", String(iTargetResults_).c_str(), String(timeTotalSweep_).c_str());
+  Serial.print(buffer);
+  sprintf(buffer, "%s,Mode,omegaLog,numCycles,omega,iOmega,iTargetOmega,timeAtOmega,timeTargetOmega,iResults,targetResults,\n", String(inHeader_).c_str());
+  Serial.print(buffer);
   frMode_     = WAI;
 }
 
@@ -86,11 +113,6 @@ void FRAnalyzer::initializeINI_(void)
   iTargetOmega_     += iTargetOmega_/numCycles_/4;  // Add 1/4 cycle to start @ -1
   iOmega_           = 0;
   timeTargetOmega_  = iTargetOmega_*T_;
-  // Headers
-  sprintf(buffer, "Number points = %s, timeTotalSweep_=%s\n", String(iTargetResults_).c_str(), String(timeTotalSweep_).c_str());
-  Serial.print(buffer);
-  sprintf(buffer, "%s,Mode,omegaLog,numCycles,omega,iOmega,iTargetOmega,timeAtOmega,timeTargetOmega,iResults,targetResults\n", inHeader_.c_str());
-  Serial.print(buffer);
 }
 
 // Initialize for frequency point (RUN)
@@ -111,9 +133,10 @@ void FRAnalyzer::initializeRUN_(void)
   }
 
 }
+ 
 
 // Calculate frequency and iterations for exact transition precision between frequency points
-double FRAnalyzer::properOmega_(const double updateTime, const unsigned int numCycles, const double omegaLog, unsigned long *iTargetOmega)
+double FRAnalyzer::properOmega_(const double updateTime, const int numCycles, const double omegaLog, unsigned long *iTargetOmega)
 {
   *iTargetOmega 	= (unsigned long)(2. * pi * numCycles / updateTime / pow(10, omegaLog) + .5);
   return ( 2. * pi * numCycles / updateTime / (float)(*iTargetOmega) );
@@ -121,8 +144,12 @@ double FRAnalyzer::properOmega_(const double updateTime, const unsigned int numC
 
 
 // Calculation executive
-double FRAnalyzer::calculate()
+double FRAnalyzer::calculate(const double *sig, const int nsig)
 {
+  for (int isig = 0; isig<nsig_; isig++)
+  {
+    sig_[isig] = sig[isig];
+  }
   switch ( frMode_ )
   {
     case WAI:
@@ -257,9 +284,13 @@ double FRAnalyzer::runIntegrate_(void)
 // Display results
 void FRAnalyzer::publish()
 {
-  sprintf(buffer, "%s,%s,%s,%s,%s/%s,%s/%s,%s/%s",
-  String(frMode_).c_str(), String(omegaLog_).c_str(), String(numCycles_).c_str(), String(omega_).c_str(),
-  String(iOmega_).c_str(), String(iTargetOmega_).c_str(), String(timeAtOmega_).c_str(), String(timeTargetOmega_).c_str(),
-  String(iResults_).c_str(), String(iTargetResults_).c_str());
+  sprintf(buffer, "%s,", String(frMode_).c_str());Serial.print(buffer);
+  sprintf(buffer, "%s,", String(omegaLog_).c_str());Serial.print(buffer);
+  sprintf(buffer, "%s,", String(numCycles_).c_str());Serial.print(buffer);
+  sprintf(buffer, "%s,", String(omega_).c_str());Serial.print(buffer);
+  sprintf(buffer, "%s/%s,%s/%s,%s/%s,",
+    String(iOmega_).c_str(),      String(iTargetOmega_).c_str(),
+    String(timeAtOmega_).c_str(), String(timeTargetOmega_).c_str(),
+    String(iResults_).c_str(),    String(iTargetResults_).c_str());
   Serial.print(buffer);
 }

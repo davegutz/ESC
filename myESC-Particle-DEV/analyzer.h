@@ -10,12 +10,12 @@ class FRAnalyzer
 public:
   FRAnalyzer();
   FRAnalyzer(const double omegaLogMin, const double omegaLogMax, const double deltaOmegaLog, const int minCycles,
-    const int numInitCycles, const double wSlow, const double T, const double *sig, const int ix[], const int iy[],
+    const int numInitCycles, const double wSlow, const double T, const int ix[], const int iy[],
     const int nsig, const int ntf, const String inHeader);
   ~FRAnalyzer(){};
   // operators
   // functions
-  double  calculate(void);
+  double  calculate(const double *sig, const int nsig);
   bool    complete(void){return(complete_);};
   double  omega(void){return(omega_);};
   void    complete(const bool set);
@@ -27,7 +27,7 @@ private:
   void    initializeINI_(void);
   void    initializeRUN_(void);
   void    initializeSET_(void);
-  double  properOmega_(const double updateTime, const unsigned int numCycles, const double omegaLog, unsigned long *iTargetOmega);
+  double  properOmega_(const double updateTime, const int numCycles, const double omegaLog, unsigned long *iTargetOmega);
   double  runIntegrate_(void);
   enum          Mode {WAI, SET, INI, RUN, CPT} frMode_;  // Run mode
   double 	      *a1_; 			    // Fourier series coefficient
@@ -52,7 +52,7 @@ private:
   double 	      omegaLogMax_;	  // Maximum log10(frequency, r/s), of sweep
   double 	      omegaLogMin_;	  // Minimum log10(frequency, r/s), of sweep
   double 	      omegaLog_; 		  // Excitation frequency log10
-  const double  *sig_;          // Signal pointers from sig input
+  double        *sig_;          // Signal pointers from sig input
   double 	      *sigGain_;  	  // Signal gains, dB
   double 	      *sigPhas_;  	  // Signal phase, deg
   double 	      sinOmT_; 		    // Memory of intermediate calculation
