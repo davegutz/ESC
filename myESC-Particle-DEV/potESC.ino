@@ -108,6 +108,7 @@ Connections for Arduino:
 #endif
 #include "math.h"
 #include "analyzer.h"
+#include "myTables.h"
 
 //
 // Test features usually commented
@@ -188,6 +189,26 @@ double              fn[4]           = {0, 0, 0, 0}; // Functions to analyze
 const int           ix[2]           = {0, 0}; // Indeces of fn to excitations
 const int           iy[2]           = {1, 2}; // Indeces of fn to responses
 const double        freqRespScalar  = 20;     // Use 40 for +/-5 deg, 20 for +/-10 deg, etc
+#ifdef ARDUINO
+const double xKI[1] = {90};   // Int gain breakpoints, %Nf
+const double yKI[1] = {3};    // Int gain, deg/s/%Nf
+const double xKP[1] = {90};   // Prop gain breakpoints, %Nf
+const double yKP[1] = {0.8};  // Prop gain, deg/%Nf
+const double xKIM[1]= {90};   // Model int gain breakpoints, %Nf
+const double yKIM[1] = {3.3}; // Model Int gain, deg/s/%Nf
+const double xKPM[1]= {90};   // Model prop gain breakpoints, %Nf
+const double yKPM[1] = {1};   // Prop gain, deg/%Nf
+#else  // Photon
+const double xKI[1] = {90};   // Int gain breakpoints, %Nf
+const double yKI[1] = {3};    // Int gain, deg/s/%Nf
+const double xKP[1] = {90};   // Prop gain breakpoints, %Nf
+const double yKP[1] = {0.8};  // Prop gain, deg/%Nf
+const double xKIM[1]= {90};   // Model int gain breakpoints, %Nf
+const double yKIM[1] = {3.3}; // Model Int gain, deg/s/%Nf
+const double xKPM[1]= {90};   // Model prop gain breakpoints, %Nf
+const double yKPM[1] = {1};   // Prop gain, deg/%Nf
+#endif
+TableInterp1D *KI_T, *KP_T, *KIM_T, *KPM_T;
 
 // Serial event stuff
 #ifndef ARDUINO
@@ -218,7 +239,7 @@ void setup()
   modelFilterV    = new LeadLagTustin(T, tldV, tauV, -0.1, 0.1);
   //analyzer        = new FRAnalyzer(-0.8, 2.3, 0.1,    2,    6,     1/tauG, double(CONTROL_DELAY/1e6), ix, iy, nsigFn, ntfFn, "t,ref,exc,thr,mod,nf,T");
   analyzer        = new FRAnalyzer(1.0, 1.3, 0.1,    2,    6,     1/tauG, double(CONTROL_DELAY/1e6), ix, iy, nsigFn, ntfFn, "t,ref,exc,thr,mod,nf,T");
- //                               wmin  wmax dw      minCy iniCy  wSlow
+  //                               wmin  wmax dw      minCy iniCy  wSlow
  // 2.3 is Nyquist for T=.015
   delay(1000);
   if (verbose>1) sprintf(buffer,"\nCalibrating ESC high...");
@@ -257,6 +278,11 @@ void setup()
 #endif
 
   delay(100);
+
+  KI_T    = new TableInterp1D(sizeof(xKI)/sizeof(double),  xKI,  yKI);
+  KP_T    = new TableInterp1D(sizeof(xKP)/sizeof(double),  xKP,  yKP);
+  KIM_T   = new TableInterp1D(sizeof(xKIM)/sizeof(double), xKIM, yKIM);
+  KPM_T   = new TableInterp1D(sizeof(xKPM)/sizeof(double), xKPM, yKPM);
 }
 
 
@@ -312,6 +338,7 @@ void loop() {
 ////////////////////////////////////////////////////////////////////////////////////
   const double            SCMAXI       = 1*float(CONTROL_DELAY)/1000000.0;    // Maximum allowable step change reset, deg/update
   const double            SCMAX        = 240*float(CONTROL_DELAY)/1000000.0;     // Maximum allowable step change, deg/update
+/*
   #ifdef ARDUINO
     const double      Ki              = 10.10/3.125;  // Int gain, deg/s/%Nf
     const double      Kp              = 2.61/3.125;   // Prop gain, deg/%Nf
@@ -323,6 +350,7 @@ void loop() {
     const double      KiM             = 11.15/3.125;  // Int gain, deg/s/%Nf
     const double      KpM             = 3.0/3.125;    // Prop gain, deg/%Nf
   #endif
+  */
   static double       pcnf            = 0;      // Fan speed, %
   static double       vf2v            = 0;      // Converted sensed back emf LM2907 circuit measure, volts
   static double       vpot_filt       = 0;      // Pot value, volts
@@ -428,6 +456,15 @@ void loop() {
     e           = pcnfRef - pcnf;
     eM          = pcnfRef - modelFS;
     if ( !closingLoop ) intState = throttle;
+    double Ki  = KI_T->interp(pcnf);
+    double Kp  = KP_T->interp(pcnf);
+    double KiM = KIM_T->interp(pcnf);
+    double KpM = KPM_T->interp(pcnf);
+    if ( verbose > 2 )
+    {
+      sprintf(buffer, "%s,%s,\n", String(Ki).c_str(), String(Kp).c_str()); Serial.print(buffer);
+      sprintf(buffer, "%s,%s,\n", String(KiM).c_str(), String(KpM).c_str()); Serial.print(buffer);
+    }
     intState    = fmax(fmin(intState  + Ki*e*updateTime,   THTL_MAX*1.26), -THTL_MAX*1.26);
     throttleCL  = fmax(fmin(intState  + fmax(fmin(Kp*e,    THTL_MAX*1.26), -THTL_MAX*1.26), THTL_MAX), THTL_MIN);
     intStateM   = fmax(fmin(intStateM + KiM*eM*updateTime, THTL_MAX*1.26), -THTL_MAX*1.26);
