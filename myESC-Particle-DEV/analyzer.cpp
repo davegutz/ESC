@@ -92,6 +92,7 @@ void    FRAnalyzer::complete(const bool set)
   timeAtOmega_      = 0;
   timeTargetOmega_  = 0;
   complete_         = false;
+  initializeSET_();
 };
 
 // Initialize for settling (SET)
@@ -133,7 +134,7 @@ void FRAnalyzer::initializeRUN_(void)
   }
 
 }
- 
+
 
 // Calculate frequency and iterations for exact transition precision between frequency points
 double FRAnalyzer::properOmega_(const double updateTime, const int numCycles, const double omegaLog, unsigned long *iTargetOmega)
