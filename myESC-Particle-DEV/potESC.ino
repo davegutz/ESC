@@ -70,22 +70,25 @@ Connections for Arduino:
   1.  Manually sweep ESC command from min to max using pot.
   2.  Limit ESC command for safety using configurable parameters.
   3.  Initialize the ESC, which is built to accept min-max input on startup.
+  4.  Switch from open to closed loop and vice versa with small, <5 deg throttle
+      bump, in response to switch change.
+  5.  Perform frequency response analysis in responseto button push.
+  6.  Update closed loop algorithms, sense inputs, and produce outputs at rate
+      at least as fast as 0.015 second update rate.
   Secondary:
-  1.  USB status
+  1.  Repeated Pushbutton toggles frequency response in progress.   When
+      restarting, it begins completely fresh.
+  2.  For non-Arduino, may use a software Pushbutton - send string on serial.
 
   Tasks TODO:
-  1.  Use the SerialEvent feature to read
-      a.  f for frequency response:  freeze throttle, no rate limits, sweep, unfreeze
-      b.  s for square wave response:  bias on pcnfref if closed, throttle if open
-  2.  Capture closed loop frequency response, add pcnfref to array
-  3.  Verify freq response again
-  4.  Check against model and tune again
-  5.  Mitigate integrator windup
+  1.  Investigate use of zener version of F2V chip.
+  2.  Add table lookup for control schedules.
 
   Revision history:
     31-Aug-2016   DA Gutz   Created
     13-Sep-2016   DA Gutz   Initial analyzing
     30-Sep-2016   DA Gutz   Arduino added
+    10-Oct-2016   DA Gutz   First frequency response completion.
 
   Distributed as-is; no warranty is given.
 */
@@ -111,7 +114,7 @@ Connections for Arduino:
 //
 // Disable flags if needed.  Usually commented
 // #define DISABLE
-//#define BARE_PHOTON                       // Run bare photon for testing.  Bare photon without this goes dark or hangs trying to write to I2C
+#define BARE_PHOTON                       // Run bare photon for testing.  Bare photon without this goes dark or hangs trying to write to I2C
 
 // Test features
 extern  const int   verbose         = 2;    // Debug, as much as you can tolerate (2)
@@ -151,9 +154,9 @@ bool                freqResp        = false;  // Perform frequency response test
 char buffer[256];
 LagTustin*          throttleFilter;           // Tustin lag filter
 LeadLagTustin*      modelFilterE;             // Tustin lead lag filter esc
-LagTustin*          modelFilterG;             // Tustin lag filter gas gen
-LagTustin*          modelFilterF;             // Tustin lag filter fan
-LagTustin*          modelFilterV;             // Tustin lag filter F2V sensor
+LeadLagTustin*      modelFilterG;             // Tustin lag filter gas gen
+LeadLagTustin*      modelFilterF;             // Tustin lag filter fan
+LeadLagTustin*      modelFilterV;             // Tustin lag filter F2V sensor
 FRAnalyzer*         analyzer;                 // Frequency response analyzer
 Servo               myservo;  // create servo object to control a servo
 double              modelE          = 0;      // Model ESC output, %Ng
@@ -162,14 +165,18 @@ double              modelF          = 0;      // Model Fan, %Nf
 double              modelFS         = 0;      // Model Fan Sensed, %Nf
 const  double       tau             = 0.10;   // Input noise filter time constant, sec
 const  double       tldE            = 0.05;   // Model ESC lead time constant, sec
-const  double       tauE            = 0.01;   // Model ESC lag time constant, sec 
+const  double       tauE            = 0.01;   // Model ESC lag time constant, sec
 #ifdef ARDUINO
-  const  double       tauV            = 0.03;   // Model F2V time constant, sec
+  const  double       tldV            = 0.0;  // Model F2V lead time constant, sec
+  const  double       tauV            = 0.03; // Model F2V lag time constant, sec
 #else
-  const  double       tauV            = 0.07;   // Model F2V time constant, sec
+  const  double       tldV            = 0.0;  // Model F2V lead time constant, sec
+  const  double       tauV            = 0.07; // Model F2V lag time constant, sec
 #endif
-const  double       tauG            = 0.13;   // Model Gas Generator time constant, sec
-const  double       tauF            = 0.13;   // Model Fan time constant, sec
+const  double       tldG            = 0.0;    // Model Gas Generator lead time constant, sec
+const  double       tauG            = 0.13;   // Model Gas Generator lag time constant, sec
+const  double       tldF            = 0.0;    // Model Fan lead time constant, sec
+const  double       tauF            = 0.13;   // Model Fan lag time constant, sec
 double              throttle        = -5;     // Servo value, 0-179 degrees
 double              throttleM       = 0;      // Modeled servo value, 0-179 degrees
 double              throttleL       = 0;      // Limited servo value, 0-179 degrees
@@ -206,11 +213,11 @@ void setup()
   double T        = float(CONTROL_DELAY)/1000000.0;
   throttleFilter  = new LagTustin(    T, tau,  -0.1, 0.1);
   modelFilterE    = new LeadLagTustin(T, tldE, tauE,-0.1, 0.1);
-  modelFilterG    = new LagTustin(    T, tauG, -0.1, 0.1);
-  modelFilterF    = new LagTustin(    T, tauF, -0.1, 0.1);
-  modelFilterV    = new LagTustin(    T, tauV, -0.1, 0.1);
-  analyzer        = new FRAnalyzer(-0.8, 2.3, 0.1,    2,    6,     1/tauG, double(CONTROL_DELAY/1e6), ix, iy, nsigFn, ntfFn, "t,ref,exc,thr,mod,nf,T");
-//  analyzer        = new FRAnalyzer(1.0, 1.3, 0.1,    2,    6,     1/tauG, double(CONTROL_DELAY/1e6), ix, iy, nsigFn, ntfFn, "t,ref,exc,thr,mod,nf,T");
+  modelFilterG    = new LeadLagTustin(T, tldG, tauG, -0.1, 0.1);
+  modelFilterF    = new LeadLagTustin(T, tldF, tauF, -0.1, 0.1);
+  modelFilterV    = new LeadLagTustin(T, tldV, tauV, -0.1, 0.1);
+  //analyzer        = new FRAnalyzer(-0.8, 2.3, 0.1,    2,    6,     1/tauG, double(CONTROL_DELAY/1e6), ix, iy, nsigFn, ntfFn, "t,ref,exc,thr,mod,nf,T");
+  analyzer        = new FRAnalyzer(1.0, 1.3, 0.1,    2,    6,     1/tauG, double(CONTROL_DELAY/1e6), ix, iy, nsigFn, ntfFn, "t,ref,exc,thr,mod,nf,T");
  //                               wmin  wmax dw      minCy iniCy  wSlow
  // 2.3 is Nyquist for T=.015
   delay(1000);
@@ -258,7 +265,7 @@ void loop() {
 #ifdef ARDUINO
   int                     buttonState = 0;    // Pushbutton
 #endif
-  bool                    closingLoop = false;// Closing loop by pin cmd, T/F
+  static bool             closingLoop = false;// Closing loop by pin cmd, T/F
   bool                    control;            // Control sequence, T/F
   bool                    publish;            // Publish, T/F
   bool                    analyzing;          // Begin analyzing, T/F
@@ -316,7 +323,7 @@ void loop() {
     const double      KiM             = 11.15/3.125;  // Int gain, deg/s/%Nf
     const double      KpM             = 3.0/3.125;    // Prop gain, deg/%Nf
   #endif
-  static double       pcnf            = 0;      // Fan speed, % 
+  static double       pcnf            = 0;      // Fan speed, %
   static double       vf2v            = 0;      // Converted sensed back emf LM2907 circuit measure, volts
   static double       vpot_filt       = 0;      // Pot value, volts
   static double       vpot            = 0;      // Pot value, volts
@@ -327,7 +334,9 @@ void loop() {
   if ( start == 0UL ) start = now;
   elapsedTime  = double(now - start)*1e-6;
 #ifdef BARE_PHOTON
-  closingLoop = true;
+  #ifdef ARDUINO
+    closingLoop = true;
+  #endif
 #else
   closingLoop = (digitalRead(CL_PIN) == HIGH);
 #endif
@@ -360,8 +369,8 @@ void loop() {
     analyzing = false;
   }
 
-  // Report that running Freq Resp
 #ifndef ARDUINO
+  // Report that running Freq Resp
   if ( analyzing )
   {
     digitalWrite(LED_PIN,  1);
@@ -376,11 +385,12 @@ void loop() {
   {
     String doFR = "f\n";
     if ( inputString == doFR ) {
-       Serial.print(inputString);
-       Serial.print(doFR);
-       Serial.println(":");
        analyzer->complete(freqResp);  // reset if doing freqResp
        freqResp = !freqResp;
+    }
+    String doCL = "c\n";
+    if ( inputString == doCL ) {
+       closingLoop = !closingLoop;
     }
     inputString = "";
     stringComplete  = false;
