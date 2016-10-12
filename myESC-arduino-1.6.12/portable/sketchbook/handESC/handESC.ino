@@ -165,7 +165,7 @@ void setup()
   WiFi.off();
 #endif
   delay(100);
-  sprintf(buffer, "elapsedTime,throttle,updateTime\n");Serial.print(buffer);
+  sprintf(buffer, "elapsedTime,vpot,throttleU,throttle,updateTime\n");Serial.print(buffer);
 }
 
 
@@ -236,7 +236,7 @@ void loop() {
     {
       throttleL  = fmax(fmin(throttleU,   throttleL+SCMAX),   throttleL-SCMAX);
     }
-    throttle  = throttleL;
+    throttle  = fmin(fmax(throttleL, THTL_MIN), THTL_MAX);
 }
 
   if ( control )
@@ -254,8 +254,10 @@ void loop() {
 
   if ( publish )
   {
-      sprintf(buffer, "%s,%s,%s,\n",
-        String(elapsedTime,6).c_str(), String(throttle).c_str(), String(updateTime,6).c_str());
-      Serial.print(buffer);
+      sprintf(buffer, "%s,%s,%s,%s,%s,\n",
+        String(elapsedTime,6).c_str(), String(vpot).c_str(),
+        String(throttleU).c_str(), String(throttle).c_str(),
+        String(updateTime,6).c_str());
+      Serial.print(F(buffer));
   }  // publish
 }
