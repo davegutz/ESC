@@ -13,6 +13,11 @@ Connections for Photon:
   DPST switch
     HI--------------------3.3V
     LO--------------------10K to GND
+  Push button-------------Photon
+      R---------------------D2
+    Push button
+      HI--------------------3.3V
+      LO--------------------10K to GND
   F2V---------------------Photon
     V5/V10----------------Analog In A2
     GND-------------------GND
@@ -115,7 +120,7 @@ Connections for Arduino:
 //
 // Disable flags if needed.  Usually commented
 // #define DISABLE
-#define BARE_PHOTON                       // Run bare photon for testing.  Bare photon without this goes dark or hangs trying to write to I2C
+//#define BARE_PHOTON                       // Run bare photon for testing.  Bare photon without this goes dark or hangs trying to write to I2C
 
 // Test features
 extern  const int   verbose         = 2;    // Debug, as much as you can tolerate (2)
@@ -135,6 +140,7 @@ bool                freqResp        = false;  // Perform frequency response test
   #define CONTROL_DELAY    15000UL            // Control law wait (), micros
   #define INSCALE          1023.0             // Input full range from OS
 #else   // Photon
+  #define BUTTON_PIN       D2                 // Button 3-way input momentary 3.3V, steady GND (D2)
   #define PWM_PIN          A4                 // PWM output (A4)
   #define POT_PIN          A0                 // Potentiometer input pin on Photon (A0)
   #define F2V_PIN          A2                 // Fan speed back-emf input pin on Photon (A2)
@@ -221,9 +227,8 @@ void setup()
 #ifndef ARDUINO
   WiFi.disconnect();
   pinMode(LED_PIN, OUTPUT);
-#else
-  pinMode(BUTTON_PIN, INPUT);
 #endif
+  pinMode(BUTTON_PIN, INPUT);
   Serial.begin(230400);
   myservo.attach(PWM_PIN);  // attaches the servo.  Only supported on pins that have PWM
   pinMode(POT_PIN, INPUT);
@@ -288,9 +293,7 @@ void setup()
 
 
 void loop() {
-#ifdef ARDUINO
   int                     buttonState = 0;    // Pushbutton
-#endif
   static bool             closingLoop = false;// Closing loop by pin cmd, T/F
   bool                    control;            // Control sequence, T/F
   bool                    publish;            // Publish, T/F
@@ -330,7 +333,7 @@ void loop() {
   const double            THTL_MIN     = 60;     // Minimum throttle, deg
   const double            P_V4_NF[3]   = {0, 7448,-435}; // Coeff V4(v) to NF(rpm)
   const double            P_LT_NG[2]   = {-78454, 21023};// Coeff log(throttle(deg)) to NG(rpm)
-  const double            P_P_PNF[2]   = {0,     21.2};  // Coeff pot(v) to PCNF(%)
+  const double            P_P_PNF[2]   = {-5,    24.2};  // Coeff pot(v) to PCNF(%)
   #endif
   const double            P_NG_NF[2]   = {-3926, 0.9420};// Coeff NG(rpm) to NF(rpm)
   const double            P_NF_NG[2]   = {4180,  1.0602};// Coeff NF(rpm) to NG(rpm)
@@ -368,7 +371,6 @@ void loop() {
 #else
   closingLoop = (digitalRead(CL_PIN) == HIGH);
 #endif
-#ifdef ARDUINO
   buttonState = digitalRead(BUTTON_PIN);
   if ( buttonState == HIGH && (now-lastButton>2000000UL ) )
   {
@@ -376,7 +378,6 @@ void loop() {
     analyzer->complete(freqResp);  // reset if doing freqResp
     freqResp = !freqResp;
   }
-#endif
   publish   = ((now-lastPublish) >= PUBLISH_DELAY-CLOCK_TCK/2 );
   if ( publish )
   {

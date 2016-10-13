@@ -92,6 +92,7 @@ void    FRAnalyzer::complete(const bool set)
   timeAtOmega_      = 0;
   timeTargetOmega_  = 0;
   complete_         = false;
+  initializeSET_();
 };
 
 // Initialize for settling (SET)
@@ -133,7 +134,7 @@ void FRAnalyzer::initializeRUN_(void)
   }
 
 }
- 
+
 
 // Calculate frequency and iterations for exact transition precision between frequency points
 double FRAnalyzer::properOmega_(const double updateTime, const int numCycles, const double omegaLog, unsigned long *iTargetOmega)
@@ -288,7 +289,7 @@ void FRAnalyzer::publish()
   sprintf(buffer, "%s,", String(omegaLog_).c_str());Serial.print(buffer);
   sprintf(buffer, "%s,", String(numCycles_).c_str());Serial.print(buffer);
   sprintf(buffer, "%s,", String(omega_).c_str());Serial.print(buffer);
-  sprintf(buffer, "%s/%s,%s/%s,%s/%s,",
+  sprintf_P(buffer, PSTR("%s/%s,%s/%s,%s/%s,"),
     String(iOmega_).c_str(),      String(iTargetOmega_).c_str(),
     String(timeAtOmega_).c_str(), String(timeTargetOmega_).c_str(),
     String(iResults_).c_str(),    String(iTargetResults_).c_str());
