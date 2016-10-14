@@ -307,16 +307,16 @@ void loop() {
   const double            F2V_MAX      = 5.0; // Maximum F2V value, vdc
   const double            F2V_MIN      = 0;   // Minimum F2V value, vdc
   const double            P_V4_NF[3]   = {0, 7227,-476};  // Coeff V4(v) to NF(rpm)
-  const double            P_LT_NG[2]   = {-63472,16373};  // Coeff log(throttle(deg)) to NG(rpm)
-  const double            P_P_PNF[2]   = {-5,     15};    // Coeff pot(v) to PCNF(%)
+  const double            P_TH_NG[2]   = {0, 121};        // Coeff throttle(deg) to NG(rpm)
+  const double            P_P_PNF[2]   = {-17.72,18.94};  // Coeff pot(v) to PCNF(%)
   #else  // Photon
   const double            POT_MAX      = 3.3; // Maximum POT value, vdc
   const double            POT_MIN      = 0;   // Minimum POT value, vdc
   const double            F2V_MAX      = 5.0; // Maximum F2V value, vdc
   const double            F2V_MIN      = 0;   // Minimum F2V value, vdc
   const double            P_V4_NF[3]   = {0, 7448,-435};  // Coeff V4(v) to NF(rpm)
-  const double            P_LT_NG[2]   = {-23320, 9037};  // Coeff log(throttle(deg)) to NG(rpm)
-  const double            P_P_PNF[2]   = {-5,    22.7};   // Coeff pot(v) to PCNF(%)
+  const double            P_TH_NG[2]   = {-0, 0};    // Coeff throttle(deg) to NG(rpm)
+  const double            P_P_PNF[2]   = {-17.72, 28.7};  // Coeff pot(v) to PCNF(%)
   #endif
   const double            P_NG_NF[2]   = {-3926, 0.9420}; // Coeff NG(rpm) to NF(rpm)
   const double            P_NF_NG[2]   = {4180,  1.0602}; // Coeff NF(rpm) to NG(rpm)
@@ -340,7 +340,7 @@ void loop() {
   static double       vpot_filt       = 0;      // Pot value, volts
   static double       vpot            = 0;      // Pot value, volts
   static int          f2vValue        = INSCALE/4;   // Dial raw value
-  static int          potValue        = INSCALE/3;   // Dial raw value
+  static int          potValue        = 0;      // Dial raw value
 
   // Executive
   if ( start == 0UL ) start = now;
@@ -433,7 +433,7 @@ void loop() {
     if ( RESET )
     {
       double throttleRPM  = P_NF_NG[0] + pcnfRef*RPM_P*P_NF_NG[1];      // RPM Ng
-      intState  = intStateM = exp((throttleRPM-P_LT_NG[0])/P_LT_NG[1]); // deg throttle
+      intState  = intStateM = (throttleRPM-P_TH_NG[0])/P_TH_NG[1]; // deg throttle
       pcnf      = pcnfRef;
       modelFS   = pcnfRef;
     }
@@ -481,7 +481,8 @@ void loop() {
     else  // open loop
     {
       double throttleRPM    = (P_NF_NG[0] + pcnfRef*RPM_P*P_NF_NG[1]);          // RPM Ng
-      double throttleU      = exp((throttleRPM-P_LT_NG[0])/P_LT_NG[1]) * (1+exciter/freqRespScalar);  // deg throttle
+      double throttleU      = (throttleRPM-P_TH_NG[0])/P_TH_NG[1] * (1+exciter/freqRespScalar);  // deg throttle
+      //throttleU = throttleRPM*0.0083;
       // Apply rate limits as needed
       if ( RESET )
       {
@@ -493,7 +494,9 @@ void loop() {
       }
       if ( freqResp ) throttle = throttleM  = throttleU* (1+exciter/freqRespScalar);
       else            throttle  = throttleM = throttleL;
-    }
+    } // open loop
+
+    // Final throttle limits
     throttle = fmax(fmin(throttle, THTL_MAX), THTL_MIN);
     fn[0] = throttle;
   }
@@ -504,7 +507,7 @@ void loop() {
     if ( RESET )
       modPcng   = (P_NF_NG[0] + pcnfRef*RPM_P*P_NF_NG[1])/RPM_P;
     else
-      modPcng   = fmax((P_LT_NG[0] + P_LT_NG[1]*log(double(int(throttleM)))) / RPM_P, 0.0);
+      modPcng   = fmax((P_TH_NG[0] + P_TH_NG[1]*double(int(throttleM))) / RPM_P, 0.0);
     modelE      = modelFilterE->calculate(modPcng, RESET);
     modelG      = modelFilterG->calculate(modelE,  RESET);
     modelF      = modelFilterF->calculate((P_NG_NF[0] + modelG*RPM_P*P_NG_NF[1])/RPM_P,  RESET);
