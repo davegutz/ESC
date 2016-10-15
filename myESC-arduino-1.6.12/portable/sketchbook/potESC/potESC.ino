@@ -194,7 +194,7 @@ const int           ntfFn           = 2;      // Number of transfer  functions t
 double              fn[4]           = {0, 0, 0, 0}; // Functions to analyze
 const int           ix[2]           = {0, 0}; // Indeces of fn to excitations
 const int           iy[2]           = {1, 2}; // Indeces of fn to responses
-const double        freqRespScalar  = 20;     // Use 40 for +/-5 deg, 20 for +/-10 deg, etc
+const double        freqRespScalar  = 20;     // Use 40 for +/-5 deg, 20 for +/-10 deg at 50% Nf
 #ifdef ARDUINO
 const double xKI[1] = {90};   // Int gain breakpoints, %Nf
 const double yKI[1] = {3};    // Int gain, deg/s/%Nf
@@ -259,7 +259,7 @@ void setup()
 
   if (verbose>1)
   {
-    sprintf(buffer, "time,cl,pcnfref,pcnf,err,state,thr,pcnfrefM,pcnfM,errM,stateM,thrM,modPcng,T\n");
+    sprintf(buffer, "time,cl,vpot,pcnfref,pcnf,err,state,thr,pcnfrefM,pcnfM,errM,stateM,thrM,modPcng,T\n");
     Serial.print(buffer);
   }
 
@@ -306,21 +306,19 @@ void loop() {
   const double            POT_MIN      = 0;   // Minimum POT value, vdc
   const double            F2V_MAX      = 5.0; // Maximum F2V value, vdc
   const double            F2V_MIN      = 0;   // Minimum F2V value, vdc
-  const double            P_V4_NF[3]   = {0, 7227,-476};  // Coeff V4(v) to NF(rpm)
-  const double            P_TH_NG[2]   = {0, 121};        // Coeff throttle(deg) to NG(rpm)
-  const double            P_P_PNF[2]   = {-17.72,18.94};  // Coeff pot(v) to PCNF(%)
+  const double            P_V4_NF[3]   = {0, 7651,-441};  // Coeff V4(v) to NF(rpm)
+  const double            P_LT_NG[2]   = {-54205, 15749}; // Coeff throttle(deg) to NG(rpm)
   #else  // Photon
   const double            POT_MAX      = 3.3; // Maximum POT value, vdc
   const double            POT_MIN      = 0;   // Minimum POT value, vdc
   const double            F2V_MAX      = 5.0; // Maximum F2V value, vdc
   const double            F2V_MIN      = 0;   // Minimum F2V value, vdc
   const double            P_V4_NF[3]   = {0, 7448,-435};  // Coeff V4(v) to NF(rpm)
-  const double            P_TH_NG[2]   = {-0, 0};    // Coeff throttle(deg) to NG(rpm)
-  const double            P_P_PNF[2]   = {-17.72, 28.7};  // Coeff pot(v) to PCNF(%)
+  const double            P_LT_NG[2]   = {-0, 0};    // Coeff throttle(deg) to NG(rpm)
   #endif
-  const double            P_NG_NF[2]   = {-3926, 0.9420}; // Coeff NG(rpm) to NF(rpm)
-  const double            P_NF_NG[2]   = {4180,  1.0602}; // Coeff NF(rpm) to NG(rpm)
-  const double            RPM_P        = 222;             // (rpm/%)
+  const double            P_NG_NF[2]   = {-4056, 0.9647}; // Coeff NG(rpm) to NF(rpm)
+  const double            P_NF_NG[2]   = {4221,  1.0354}; // Coeff NF(rpm) to NG(rpm)
+  const double            RPM_P        = 232;             // (rpm/%)
 ////////////////////////////////////////////////////////////////////////////////////
   const double            SCMAXI       = 1*float(CONTROL_DELAY)/1000000.0;    // Maximum allowable step change reset, deg/update
   const double            SCMAX        = 240*float(CONTROL_DELAY)/1000000.0;     // Maximum allowable step change, deg/update
@@ -428,12 +426,13 @@ void loop() {
   if ( control )
   {
     if ( !freqResp ) vpot_filt   = throttleFilter->calculate(vpot,  RESET);  // Freeze pot for FR
-    pcnfRef     = P_P_PNF[0]  + vpot_filt*P_P_PNF[1];
+    double potThrottle = vpot_filt*THTL_MAX/POT_MAX;  // deg
+    double throttleRPM = fmax(P_LT_NG[0] + P_LT_NG[1]*log(potThrottle), 0.0);
+    pcnfRef = (P_NG_NF[0] +P_NG_NF[1]*throttleRPM)/RPM_P;
     if ( closingLoop && freqResp ) pcnfRef *= (1+exciter/freqRespScalar);
     if ( RESET )
     {
-      double throttleRPM  = P_NF_NG[0] + pcnfRef*RPM_P*P_NF_NG[1];      // RPM Ng
-      intState  = intStateM = (throttleRPM-P_TH_NG[0])/P_TH_NG[1]; // deg throttle
+      intState  = intStateM = potThrottle; // deg throttle
       pcnf      = pcnfRef;
       modelFS   = pcnfRef;
     }
@@ -480,9 +479,8 @@ void loop() {
     }
     else  // open loop
     {
-      double throttleRPM    = (P_NF_NG[0] + pcnfRef*RPM_P*P_NF_NG[1]);          // RPM Ng
-      double throttleU      = (throttleRPM-P_TH_NG[0])/P_TH_NG[1] * (1+exciter/freqRespScalar);  // deg throttle
-      //throttleU = throttleRPM*0.0083;
+      double throttleU      = potThrottle * (1+exciter/freqRespScalar);  // deg throttle
+
       // Apply rate limits as needed
       if ( RESET )
       {
@@ -507,7 +505,7 @@ void loop() {
     if ( RESET )
       modPcng   = (P_NF_NG[0] + pcnfRef*RPM_P*P_NF_NG[1])/RPM_P;
     else
-      modPcng   = fmax((P_TH_NG[0] + P_TH_NG[1]*double(int(throttleM))) / RPM_P, 0.0);
+      modPcng   = fmax((P_LT_NG[0] + P_LT_NG[1]*log(double(int(throttleM)))) / RPM_P, 0.0);
     modelE      = modelFilterE->calculate(modPcng, RESET);
     modelG      = modelFilterG->calculate(modelE,  RESET);
     modelF      = modelFilterF->calculate((P_NG_NF[0] + modelG*RPM_P*P_NG_NF[1])/RPM_P,  RESET);
@@ -546,9 +544,9 @@ void loop() {
     {
       if (verbose>1)
       {
-        sprintf_P(buffer, PSTR("%s,%s,  "), String(elapsedTime,6).c_str(), String(closingLoop).c_str());
+        sprintf_P(buffer, PSTR("%s,%s, %s,  "), String(elapsedTime,6).c_str(), String(closingLoop).c_str(), String(vpot_filt).c_str());
         Serial.print(buffer);
-        sprintf_P(buffer, PSTR("%s,%s,  %s,%s,%s,  "), String(pcnfRef).c_str(), String(pcnf).c_str(),
+        sprintf_P(buffer, PSTR("%s,%s,  %s,%s,%s,  "), String(pcnfRef).c_str(), String(pcnf).c_str(), 
         String(e).c_str(), String(intState).c_str(), String(throttle).c_str());
         Serial.print(buffer);
         sprintf_P(buffer, PSTR("%s,%s,  %s,%s,%s,  "), String(pcnfRef).c_str(), String(modelFS).c_str(),
