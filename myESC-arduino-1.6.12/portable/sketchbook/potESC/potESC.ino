@@ -194,7 +194,7 @@ const int           ntfFn           = 2;      // Number of transfer  functions t
 double              fn[4]           = {0, 0, 0, 0}; // Functions to analyze
 const int           ix[2]           = {0, 0}; // Indeces of fn to excitations
 const int           iy[2]           = {1, 2}; // Indeces of fn to responses
-const double        freqRespScalar  = 13;     // Use 40 for +/-3 deg, 20 for +/-6 deg, 13 for +/-9 at 50% Nf
+const double        freqRespScalar  = 40;     // Use 40 for +/-5 deg, 20 for +/-10 deg at 50% Nf
 #ifdef ARDUINO
 const double xKI[1] = {90};   // Int gain breakpoints, %Nf
 const double yKI[1] = {3};    // Int gain, deg/s/%Nf
@@ -306,8 +306,8 @@ void loop() {
   const double            POT_MIN      = 0;   // Minimum POT value, vdc
   const double            F2V_MAX      = 5.0; // Maximum F2V value, vdc
   const double            F2V_MIN      = 0;   // Minimum F2V value, vdc
-  const double            P_V4_NF[3]   = {0, 14098,-171};    // Coeff V4(v) to NF(rpm)
-  const double            P_LT_NG[2]   = {-28327, 14190};    // Coeff throttle(deg) to NG(rpm)
+  const double            P_V4_NF[3]   = {0, 7539,-397};    // Coeff V4(v) to NF(rpm)
+  const double            P_LT_NG[2]   = {-9206, 5975};     // Coeff throttle(deg) to NG(rpm)
   #else  // Photon
   const double            POT_MAX      = 3.3; // Maximum POT value, vdc
   const double            POT_MIN      = 0;   // Minimum POT value, vdc
@@ -316,9 +316,9 @@ void loop() {
   const double            P_V4_NF[3]   = {0, 7448,-435};  // Coeff V4(v) to NF(rpm)
   const double            P_LT_NG[2]   = {-0, 0};    // Coeff throttle(deg) to NG(rpm)
   #endif
-  const double            P_NG_NF[2]   = {-10231, 1.0237}; // Coeff NG(rpm) to NF(rpm)
-  const double            P_NF_NG[2]   = {10154,  0.9683}; // Coeff NF(rpm) to NG(rpm)
-  const double            RPM_P        = 461;              // (rpm/%)
+  const double            P_NG_NF[2]   = {-5111, 1.0238}; // Coeff NG(rpm) to NF(rpm)
+  const double            P_NF_NG[2]   = {5078,  0.9668}; // Coeff NF(rpm) to NG(rpm)
+  const double            RPM_P        = 232;             // (rpm/%)
 ////////////////////////////////////////////////////////////////////////////////////
   const double            SCMAXI       = 1*float(CONTROL_DELAY)/1000000.0;    // Maximum allowable step change reset, deg/update
   const double            SCMAX        = 240*float(CONTROL_DELAY)/1000000.0;     // Maximum allowable step change, deg/update
