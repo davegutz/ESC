@@ -146,8 +146,8 @@ bool                freqResp        = false;  // Perform frequency response test
   #define CL_PIN           D0                 // Closed loop 3-way switch 3.3V or GND  (D0)
   #define FR_DELAY         4000000UL          // Time to start FR, micros
   #define CLOCK_TCK        8UL                // Clock tick resolution, micros
-  #define PUBLISH_DELAY    40000UL            // Time between cloud updates (), micros
-  #define CONTROL_DELAY    10000UL            // Control law wait (), micros
+  #define PUBLISH_DELAY    60000UL            // Time between cloud updates (), micros
+  #define CONTROL_DELAY    15000UL            // Control law wait (), micros
   #define INSCALE          4096.0             // Input full range from OS
 #endif
 
@@ -171,13 +171,8 @@ double              modelFS         = 0;      // Model Fan Sensed, %Nf
 const  double       tau             = 0.10;   // Input noise filter time constant, sec
 const  double       tldE            = 0.05;   // Model ESC lead time constant, sec
 const  double       tauE            = 0.01;   // Model ESC lag time constant, sec
-#ifdef ARDUINO
-  const  double       tldV            = 0.0;  // Model F2V lead time constant, sec
-  const  double       tauV            = 0.03; // Model F2V lag time constant, sec
-#else
-  const  double       tldV            = 0.0;  // Model F2V lead time constant, sec
-  const  double       tauV            = 0.07; // Model F2V lag time constant, sec
-#endif
+const  double       tldV            = 0.0;  // Model F2V lead time constant, sec
+const  double       tauV            = 0.03; // Model F2V lag time constant, sec
 const  double       tldG            = 0.0;    // Model Gas Generator lead time constant, sec
 const  double       tauG            = 0.13;   // Model Gas Generator lag time constant, sec
 const  double       tldF            = 0.0;    // Model Fan lead time constant, sec
@@ -194,26 +189,15 @@ const int           ntfFn           = 2;      // Number of transfer  functions t
 double              fn[4]           = {0, 0, 0, 0}; // Functions to analyze
 const int           ix[2]           = {0, 0}; // Indeces of fn to excitations
 const int           iy[2]           = {1, 2}; // Indeces of fn to responses
-const double        freqRespScalar  = 13;     // Use 40 for +/-3 deg, 20 for +/-6 deg, 13 for +/-9 at 50% Nf
-#ifdef ARDUINO
+const double        freqRespScalar  = 20;     // Use 40 for +/-3 deg, 20 for +/-6 deg, 13 for +/-10 at 50% Nf
 const double xKI[1] = {90};   // Int gain breakpoints, %Nf
 const double yKI[1] = {3};    // Int gain, deg/s/%Nf
 const double xKP[1] = {90};   // Prop gain breakpoints, %Nf
 const double yKP[1] = {0.8};  // Prop gain, deg/%Nf
 const double xKIM[1]= {90};   // Model int gain breakpoints, %Nf
-const double yKIM[1] = {3.3}; // Model Int gain, deg/s/%Nf
+const double yKIM[1]= {3.3};  // Model Int gain, deg/s/%Nf
 const double xKPM[1]= {90};   // Model prop gain breakpoints, %Nf
-const double yKPM[1] = {1};   // Prop gain, deg/%Nf
-#else  // Photon
-const double xKI[1] = {90};   // Int gain breakpoints, %Nf
-const double yKI[1] = {3};    // Int gain, deg/s/%Nf
-const double xKP[1] = {90};   // Prop gain breakpoints, %Nf
-const double yKP[1] = {0.8};  // Prop gain, deg/%Nf
-const double xKIM[1]= {90};   // Model int gain breakpoints, %Nf
-const double yKIM[1] = {3.3}; // Model Int gain, deg/s/%Nf
-const double xKPM[1]= {90};   // Model prop gain breakpoints, %Nf
-const double yKPM[1] = {1};   // Prop gain, deg/%Nf
-#endif
+const double yKPM[1]= {1};    // Prop gain, deg/%Nf
 TableInterp1D *KI_T, *KP_T, *KIM_T, *KPM_T;
 
 // Serial event stuff
@@ -306,33 +290,24 @@ void loop() {
   const double            POT_MIN      = 0;   // Minimum POT value, vdc
   const double            F2V_MAX      = 5.0; // Maximum F2V value, vdc
   const double            F2V_MIN      = 0;   // Minimum F2V value, vdc
-  const double            P_V4_NF[3]   = {0, 14098,-171};    // Coeff V4(v) to NF(rpm)
-  const double            P_LT_NG[2]   = {-28327, 14190};    // Coeff throttle(deg) to NG(rpm)
   #else  // Photon
   const double            POT_MAX      = 3.3; // Maximum POT value, vdc
   const double            POT_MIN      = 0;   // Minimum POT value, vdc
   const double            F2V_MAX      = 5.0; // Maximum F2V value, vdc
   const double            F2V_MIN      = 0;   // Minimum F2V value, vdc
-  const double            P_V4_NF[3]   = {0, 7448,-435};  // Coeff V4(v) to NF(rpm)
-  const double            P_LT_NG[2]   = {-0, 0};    // Coeff throttle(deg) to NG(rpm)
   #endif
-  const double            P_NG_NF[2]   = {-10231, 1.0237}; // Coeff NG(rpm) to NF(rpm)
-  const double            P_NF_NG[2]   = {10154,  0.9683}; // Coeff NF(rpm) to NG(rpm)
-  const double            RPM_P        = 461;              // (rpm/%)
+  const double            P_V4_NF[3]   = {0, 14098,-171};   // Coeff V4(v) to NF(rpm)
+  const double            P_LT_NG[2]   = {-28327, 14190};   // Coeff throttle(deg) to NG(rpm)
+  const double            P_NG_NF[2]   = {-10231, 1.0237};  // Coeff NG(rpm) to NF(rpm)
+  const double            P_NF_NG[2]   = {10154,  0.9683};  // Coeff NF(rpm) to NG(rpm)
+  const double            RPM_P        = 461;               // (rpm/%)
 ////////////////////////////////////////////////////////////////////////////////////
-  const double            SCMAXI       = 1*float(CONTROL_DELAY)/1000000.0;    // Maximum allowable step change reset, deg/update
-  const double            SCMAX        = 240*float(CONTROL_DELAY)/1000000.0;     // Maximum allowable step change, deg/update
-  #ifdef ARDUINO
-    double           Ki              = 10.10/3.125;  // Int gain, deg/s/%Nf
-    double           Kp              = 2.61/3.125;   // Prop gain, deg/%Nf
-    double           KiM             = 9.69/3.125;   // Int gain, deg/s/%Nf
-    double           KpM             = 2.52/3.125;   // Prop gain, deg/%Nf
-  #else  // Photon
-    double           Ki              = 11.15/3.125;  // Int gain, deg/s/%Nf
-    double           Kp              = 3.0/3.125;    // Prop gain, deg/%Nf
-    double           KiM             = 11.15/3.125;  // Int gain, deg/s/%Nf
-    double           KpM             = 3.0/3.125;    // Prop gain, deg/%Nf
-  #endif
+  const double        SCMAXI          = 1*float(CONTROL_DELAY)/1000000.0;    // Maximum allowable step change reset, deg/update
+  const double        SCMAX           = 240*float(CONTROL_DELAY)/1000000.0;     // Maximum allowable step change, deg/update
+  double              Ki              = 10.10/3.125;  // Int gain, deg/s/%Nf
+  double              Kp              = 2.61/3.125;   // Prop gain, deg/%Nf
+  double              KiM             = 9.69/3.125;   // Int gain, deg/s/%Nf
+  double              KpM             = 2.52/3.125;   // Prop gain, deg/%Nf
   static double       pcnf            = 0;      // Fan speed, %
   static double       vf2v            = 0;      // Converted sensed back emf LM2907 circuit measure, volts
   static double       vpot_filt       = 0;      // Pot value, volts
