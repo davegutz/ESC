@@ -189,15 +189,16 @@ const int           ntfFn           = 2;      // Number of transfer  functions t
 double              fn[4]           = {0, 0, 0, 0}; // Functions to analyze
 const int           ix[2]           = {0, 0}; // Indeces of fn to excitations
 const int           iy[2]           = {1, 2}; // Indeces of fn to responses
-const double        freqRespScalar  = 20;     // Use 40 for +/-3 deg, 20 for +/-6 deg, 13 for +/-10 at 50% Nf
-const double xKI[1] = {90};   // Int gain breakpoints, %Nf
-const double yKI[1] = {3};    // Int gain, deg/s/%Nf
-const double xKP[1] = {90};   // Prop gain breakpoints, %Nf
-const double yKP[1] = {0.8};  // Prop gain, deg/%Nf
-const double xKIM[1]= {90};   // Model int gain breakpoints, %Nf
-const double yKIM[1]= {3.3};  // Model Int gain, deg/s/%Nf
-const double xKPM[1]= {90};   // Model prop gain breakpoints, %Nf
-const double yKPM[1]= {1};    // Prop gain, deg/%Nf
+const double        freqRespScalar  = 1e8;     // Use 40 for +/-3 deg, 20 for +/-6 deg, 13 for +/-10 at 50% Nf
+const double        freqRespAdder   = 6;      // +/- deg
+const double xKI[1] = {90};         // Int gain breakpoints, %Nf
+const double yKI[1] = {12.155};     // Int gain, deg/s/%Nf
+const double xKP[1] = {90};         // Prop gain breakpoints, %Nf
+const double yKP[1] = {3.5202};     // Prop gain, deg/%Nf
+const double xKIM[1]= {90};         // Model int gain breakpoints, %Nf
+const double yKIM[1]= {11.637};     // Model Int gain, deg/s/%Nf
+const double xKPM[1]= {90};         // Model prop gain breakpoints, %Nf
+const double yKPM[1]= {3.3094};     // Prop gain, deg/%Nf
 TableInterp1D *KI_T, *KP_T, *KIM_T, *KPM_T;
 
 // Serial event stuff
@@ -304,10 +305,11 @@ void loop() {
 ////////////////////////////////////////////////////////////////////////////////////
   const double        SCMAXI          = 1*float(CONTROL_DELAY)/1000000.0;    // Maximum allowable step change reset, deg/update
   const double        SCMAX           = 240*float(CONTROL_DELAY)/1000000.0;     // Maximum allowable step change, deg/update
-  double              Ki              = 10.10/3.125;  // Int gain, deg/s/%Nf
-  double              Kp              = 2.61/3.125;   // Prop gain, deg/%Nf
-  double              KiM             = 9.69/3.125;   // Int gain, deg/s/%Nf
-  double              KpM             = 2.52/3.125;   // Prop gain, deg/%Nf
+  double              Ki              = 12.155;  // Int gain, deg/s/%Nf
+  double              Kp              = 3.5202;  // Prop gain, deg/%Nf
+  double              KiM             = 11.637;  // Int gain, deg/s/%Nf
+  double              KpM             = 3.3094;  // Prop gain, deg/%Nf
+
   static double       pcnf            = 0;      // Fan speed, %
   static double       vf2v            = 0;      // Converted sensed back emf LM2907 circuit measure, volts
   static double       vpot_filt       = 0;      // Pot value, volts
@@ -414,12 +416,6 @@ void loop() {
     e           = pcnfRef - pcnf;
     eM          = pcnfRef - modelFS;
     if ( !closingLoop ) intState = throttle;
-    /*
-    Ki  = tab1(pcnf, xKI,   yKI,  sizeof(xKI)/sizeof(double));
-    Kp  = tab1(pcnf, xKP,   yKP,  sizeof(xKP)/sizeof(double));
-    KiM = tab1(pcnf, xKIM,  yKIM, sizeof(xKIM)/sizeof(double));
-    KpM = tab1(pcnf, xKPM,  yKPM, sizeof(xKPM)/sizeof(double));
-    */
     Ki  = KI_T->interp(pcnf);
     Kp  = KP_T->interp(pcnf);
     KiM = KIM_T->interp(pcnf);
@@ -454,7 +450,7 @@ void loop() {
     }
     else  // open loop
     {
-      double throttleU      = potThrottle * (1+exciter/freqRespScalar);  // deg throttle
+      double throttleU      = potThrottle * (1+exciter/freqRespScalar) + exciter*freqRespAdder;  // deg throttle
 
       // Apply rate limits as needed
       if ( RESET )
@@ -465,7 +461,7 @@ void loop() {
       {
         throttleL   = throttleU;
       }
-      if ( freqResp ) throttle = throttleM  = throttleU* (1+exciter/freqRespScalar);
+      if ( freqResp ) throttle = throttleM  = throttleU;
       else            throttle  = throttleM = throttleL;
     } // open loop
 
