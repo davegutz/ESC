@@ -147,7 +147,7 @@ bool                freqResp        = false;  // Perform frequency response test
   #define FR_DELAY         4000000UL          // Time to start FR, micros
   #define CLOCK_TCK        8UL                // Clock tick resolution, micros
   #define PUBLISH_DELAY    60000UL            // Time between cloud updates (), micros
-  #define CONTROL_DELAY    15000UL            // Control law wait (), micros
+  #define CONTROL_DELAY    1000UL             // Control law wait (), micros
   #define INSCALE          4096.0             // Input full range from OS
 #endif
 
@@ -227,9 +227,9 @@ void setup()
   modelFilterG    = new LeadLagTustin(T, tldG, tauG, -0.1, 0.1);
   modelFilterF    = new LeadLagTustin(T, tldF, tauF, -0.1, 0.1);
   modelFilterV    = new LeadLagTustin(T, tldV, tauV, -0.1, 0.1);
-  analyzer        = new FRAnalyzer(-0.8, 2.2, 0.1,    2,    6,     1/tauG, double(CONTROL_DELAY/1e6), ix, iy, nsigFn, ntfFn, "t,ref,exc,thr,mod,nf,T");
-  //analyzer        = new FRAnalyzer(1.0, 1.3, 0.1,    2,    6,     1/tauG, double(CONTROL_DELAY/1e6), ix, iy, nsigFn, ntfFn, "t,ref,exc,thr,mod,nf,T");
-  //                               wmin  wmax dw      minCy iniCy  wSlow
+  analyzer        = new FRAnalyzer(-0.8, 2.3, 0.1,    2,   4.0,      6,     1/tauG, double(CONTROL_DELAY/1e6), ix, iy, nsigFn, ntfFn, "t,ref,exc,thr,mod,nf,T"); // Photon 1ms
+//  analyzer        = new FRAnalyzer(-0.8, 2.3, 0.1,    2,   1.0,      6,     1/tauG, double(CONTROL_DELAY/1e6), ix, iy, nsigFn, ntfFn, "t,ref,exc,thr,mod,nf,T"); // 15 ms any
+  //                               wmin  wmax dw      minCy numCySc  iniCy  wSlow
  // 2.2 is Nyquist for T=.020
 
   myservo.write(throttle);
@@ -294,7 +294,7 @@ void loop() {
   #else  // Photon
   const double            POT_MAX      = 3.3; // Maximum POT value, vdc
   const double            POT_MIN      = 0;   // Minimum POT value, vdc
-  const double            F2V_MAX      = 5.0; // Maximum F2V value, vdc
+  const double            F2V_MAX      = 3.45; // Maximum F2V value, vdc
   const double            F2V_MIN      = 0;   // Minimum F2V value, vdc
   #endif
   const double            P_V4_NF[3]   = {0, 14098,-171};   // Coeff V4(v) to NF(rpm)
@@ -517,7 +517,7 @@ void loop() {
       {
         sprintf_P(buffer, PSTR("%s,%s, %s,  "), String(elapsedTime,6).c_str(), String(closingLoop).c_str(), String(vpot_filt).c_str());
         Serial.print(buffer);
-        sprintf_P(buffer, PSTR("%s,%s,  %s,%s,%s,  "), String(pcnfRef).c_str(), String(pcnf).c_str(), 
+        sprintf_P(buffer, PSTR("%s,%s,  %s,%s,%s,  "), String(pcnfRef).c_str(), String(pcnf).c_str(),
         String(e).c_str(), String(intState).c_str(), String(throttle).c_str());
         Serial.print(buffer);
         sprintf_P(buffer, PSTR("%s,%s,  %s,%s,%s,  "), String(pcnfRef).c_str(), String(modelFS).c_str(),

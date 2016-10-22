@@ -13,7 +13,7 @@ extern char buffer[256];
 //Class FRAnalyzer
 
 FRAnalyzer::FRAnalyzer(const double omegaLogMin, const double omegaLogMax,
-  const double deltaOmegaLog, const int minCycles, const int numInitCycles,
+  const double deltaOmegaLog, const int minCycles, const double numCycleScalar, const int numInitCycles,
   const double wSlow, const double T, const int ix[],
   const int iy[], const int nsig, const int ntf, const String inHeader)
 {
@@ -30,6 +30,7 @@ FRAnalyzer::FRAnalyzer(const double omegaLogMin, const double omegaLogMax,
   nsig_           = nsig;
   ntf_            = ntf;
   numCycles_      = 0;
+  numCycleScalar_ = numCycleScalar;
   omega_          = 0;
   omegaLog_       = omegaLogMin;
   omegaLogMax_    = omegaLogMax;
@@ -109,7 +110,7 @@ void FRAnalyzer::initializeINI_(void)
 {
   double aint;
   modf(omegaLog_, &aint);
-  numCycles_        = fmax(minCycles_, int(omega_));
+  numCycles_       = fmax(minCycles_, int(omega_*320.0*T_*numCycleScalar_)); // at least 1300 poiints
   omega_            = properOmega_(T_,  numCycles_, omegaLog_, &iTargetOmega_);
   iTargetOmega_     += iTargetOmega_/numCycles_/4;  // Add 1/4 cycle to start @ -1
   iOmega_           = 0;
@@ -121,7 +122,7 @@ void FRAnalyzer::initializeRUN_(void)
 {
   double aint;
   modf(omegaLog_, &aint);
-  numCycles_       = fmax(minCycles_, int(omega_));
+  numCycles_       = fmax(minCycles_, int(omega_*320.0*T_*numCycleScalar_));  // at least 1300 points
   omega_           = properOmega_(T_,  numCycles_, omegaLog_, &iTargetOmega_);
   iOmega_  		     = 0;
   timeTargetOmega_ = iTargetOmega_*T_;

@@ -10,7 +10,7 @@ class FRAnalyzer
 public:
   FRAnalyzer();
   FRAnalyzer(const double omegaLogMin, const double omegaLogMax, const double deltaOmegaLog, const int minCycles,
-    const int numInitCycles, const double wSlow, const double T, const int ix[], const int iy[],
+    const double numCycleScalar, const int numInitCycles, const double wSlow, const double T, const int ix[], const int iy[],
     const int nsig, const int ntf, const String inHeader);
   ~FRAnalyzer(){};
   // operators
@@ -48,6 +48,7 @@ private:
   unsigned int  ntf_;           // Number of transfer functions derived from ix[] size
   unsigned int  minCycles_;     // Minimum number of sweep cycles at each frequency
   unsigned int  numCycles_;     // Number of cycles to run of sinusoid
+  double        numCycleScalar_;// Scalar times number of cycles normally done
   double 	      omega_; 		    // Excitation frequency, r/s
   double 	      omegaLogMax_;	  // Maximum log10(frequency, r/s), of sweep
   double 	      omegaLogMin_;	  // Minimum log10(frequency, r/s), of sweep
