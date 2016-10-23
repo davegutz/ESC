@@ -118,7 +118,7 @@ Connections for Arduino:
 //
 // Disable flags if needed.  Usually commented
 // #define DISABLE
-//#define BARE_MICROPROCESSOR                       // Run bare photon for testing.  Bare photon without this goes dark or hangs trying to write to I2C
+#define BARE_MICROPROCESSOR                       // Run bare photon for testing.  Bare photon without this goes dark or hangs trying to write to I2C
 
 // Test features
 extern  const int   verbose         = 2;    // Debug, as much as you can tolerate (2)
@@ -215,6 +215,7 @@ void setup()
 #endif
   pinMode(BUTTON_PIN, INPUT);
   Serial.begin(230400);
+//  Serial.begin(115200);
   myservo.attach(PWM_PIN, 1000, 2000);  // attaches the servo.  Only supported on pins that have PWM
   pinMode(POT_PIN, INPUT);
   pinMode(F2V_PIN, INPUT);
