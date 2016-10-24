@@ -1,12 +1,3 @@
-// Standard
-#ifdef ARDUINO
-#else   // Photon
-  #include "application.h"      // Should not be needed if file ino or Arduino
-  #include "inttypes.h"
-//  #include "io.h"
-//  #include "WProgram.h"
-//  SYSTEM_THREAD(ENABLED);       // Make sure heat system code always run regardless of network status
-#endif
 
 // Arduino Code for the Motor Speed Control Lab
 
@@ -54,7 +45,7 @@ void setup() {
   pinMode(motorVoltagePin, INPUT);
   pinMode(pwmVoltagePin, INPUT);
   pinMode(angleSensorPin, INPUT);
-
+  
   // Set up PWM motor output pin, affects delay() function
   // Delay argument will be in 1/64 milliseconds.
   pinMode(motorOutputPin,OUTPUT);
@@ -65,7 +56,7 @@ void setup() {
   Serial.begin(115200);
 
   // Initialization for data transfer from host.
-  inputString.reserve(10);  // Reserve space for rcvd data
+  inputString.reserve(10);  // Reserve space for rcvd data   
   stringComplete = false;
   numSkip = max(int((transferDt+100)/deltaT),1);  // Number of loops between host transfers.
   loop_counter = 0;  // Initialize counter for status transfer
@@ -85,17 +76,17 @@ void setup() {
 
 // Main code, runs repeatedly
 void loop() {
-
+  
   // Check if first time.
   startup();
-
+  
   // Make sure loop start is deltaT microsecs since last start
   int headroom = timeSync(deltaT);
-
-  // Invert monitor
+  
+  // Invert monitor 
   //digitalWrite(loopPin,loopFlag);
   //loopFlag = !loopFlag;
-
+  
   // User modifiable code between stars!!
   /***********************************************/
   // Measure the voltage across the motor and the voltage at the drive transistor.
@@ -108,22 +99,22 @@ void loop() {
   // offsetting the motor voltage with the voltage across the 1/2 ohm resistor.
   // Convert to an integer between 0 -> 256 by dividing by six.
   float motorSpd = 0.5*float(VmotorADC - (VpwmADC - VmotorADC));
-  float armAngle = 0.25*float(VangleADC);
-
+  float armAngle = 0.25*float(VangleADC); 
+  
   // Compute the error, which is the difference between desired and measured speed.
   float error = desired - motorSpd;
-
+  
   // Compute and limit the motor output command.
   int motorCmd = int(Kp * error + direct);
   motorCmd = min(max(motorCmd, 0), dacMax);
   analogWrite(motorOutputPin,motorCmd);
-
+  
   /***********************************************/
-
+  
   //check for new parameter values!
-  serialEvent();
+  serialEvent();  
   if(stringComplete) processString();
-
+  
   // Transfer to host occasionally
   if (loop_counter % numSkip == 0) {
     loop_counter = 0;
@@ -195,20 +186,20 @@ char St = inputString.charAt(0);
   inputString.remove(0,1);
   float val = inputString.toFloat();
   switch (St) {
-    case 'P':
+    case 'P': 
       Kp = val;
       break;
-    case 'O':
+    case 'O':  
       direct = val;
       break;
-    case 'A':
+    case 'A':  
       desired = val;
       break;
     case '~':
       first_time = true;
       break;
     default:
-    break;
+    break;  
   }
   inputString = "";
   stringComplete = false;
@@ -270,10 +261,10 @@ void timeSyncInit() {
 // Wait until it has been deltaT since this was last called.
 // Returns headroom, delay in units of 5us.
 int timeSync(unsigned long dT) {
-
+ 
   unsigned long delayMuS = max((dT - (micros()-starttime))/scaleT, 1);
   if (delayMuS > 5000) {
-    delay(delayMuS / 1000);
+    delay(delayMuS / 1000); 
     delayMicroseconds(delayMuS % 1000);
   } else {
     delayMicroseconds(delayMuS); // Wait to start exactly deltaT after last start
@@ -281,7 +272,7 @@ int timeSync(unsigned long dT) {
 
   headroom_ts = min(headroom_ts,delayMuS);  // min loop headroom should be > 0!!
   starttime = micros(); // Note time loop begins
-
+    
   // Output square wave on monitor pin
   digitalWrite(monitorPin, switchFlag);
   switchFlag = !switchFlag;
@@ -324,3 +315,4 @@ void startup(){
     }
   }
 }
+
