@@ -44,8 +44,8 @@ public:
   //functions
   virtual double  calculate(const double in, const int RESET);
   virtual double  calculate(const double in, const int RESET, const double T);
+  virtual double  calculate(double in, int RESET, const double T,const double tau, const double tld);
   virtual void    assignCoeff(const double tld, const double tau, const double T);
-//  virtual void    rateState(const double in);
   virtual double  rateStateCalc(const double in);
   virtual double  rateStateCalc(const double in, const double T);
   virtual double  state(void);

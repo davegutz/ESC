@@ -95,6 +95,16 @@ double LeadLagTustin::calculate(double in, int RESET)
   double out = LeadLagTustin::rateStateCalc(in);
   return(out);
 }
+double LeadLagTustin::calculate(double in, int RESET, const double T,const double tau, const double tld)
+{
+  if (RESET>0)
+  {
+    state_ = in;
+  }
+  LeadLagTustin::assignCoeff(tld, tau, T);
+  double out = LeadLagTustin::rateStateCalc(in, T);
+  return(out);
+}
 double LeadLagTustin::calculate(double in, int RESET, const double T)
 {
   if (RESET>0)

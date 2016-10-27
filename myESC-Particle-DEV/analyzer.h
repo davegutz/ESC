@@ -11,7 +11,7 @@ public:
   FRAnalyzer();
   FRAnalyzer(const double omegaLogMin, const double omegaLogMax, const double deltaOmegaLog, const int minCycles,
     const double numCycleScalar, const int numInitCycles, const double wSlow, const double T, const int ix[], const int iy[],
-    const int nsig, const int ntf, const String inHeader);
+    const int nsig, const int ntf, const String inHeader, const boolean square);
   ~FRAnalyzer(){};
   // operators
   // functions
@@ -57,6 +57,7 @@ private:
   double 	      *sigGain_;  	  // Signal gains, dB
   double 	      *sigPhas_;  	  // Signal phase, deg
   double 	      sinOmT_; 		    // Memory of intermediate calculation
+  boolean       square_;        // If square wave instead of sine
   double 	      T_; 			      // Update time, sec
   double        tau_;           // Time constant slowest expected mode, sec
   double 	      Tlog_; 			    // Log10 of update time
