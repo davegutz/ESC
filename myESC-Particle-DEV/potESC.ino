@@ -127,7 +127,7 @@ Connections for Arduino:
 // Test features
 extern  const int   verbose         = 2;      // Debug, as much as you can tolerate (2)
 bool                freqResp        = false;  // Perform frequency response test
-bool                beSquare        = false;   // Do step instead of freqResp
+bool                beSquare        = true;   // Do step instead of freqResp
 double              stepVal         = 5;      // Step input
 
 // Constants always defined
@@ -139,7 +139,7 @@ double              stepVal         = 5;      // Step input
   #define F2V_PIN         A2                // Fan speed back-emf input pin on Arduino (PC2)
   #define CL_PIN          4                 // Closed loop 3-way switch 5V or GND (D4 to GND)
   #define CLOCK_TCK       16UL              // Clock tick resolution, micros
-  #define PUBLISH_DELAY   150000UL           // Time between cloud updates (), micros
+  #define PUBLISH_DELAY   15000UL           // Time between cloud updates (), micros
   #define CONTROL_DELAY   15000UL           // Control law wait (), micros
   #define INSCALE         1023.0            // Input full range from OS
   const  double           POT_MAX     = 5.0;// Maximum POT value, vdc
@@ -153,7 +153,7 @@ double              stepVal         = 5;      // Step input
   #define F2V_PIN         A2                // Fan speed back-emf input pin on Photon (A2)
   #define CL_PIN          D0                // Closed loop 3-way switch 3.3V or GND  (D0)
   #define CLOCK_TCK       8UL               // Clock tick resolution, micros
-  #define PUBLISH_DELAY   150000UL           // Time between cloud updates (), micros
+  #define PUBLISH_DELAY   15000UL           // Time between cloud updates (), micros
   #define CONTROL_DELAY   15000UL           // Control law wait (), micros
   #define INSCALE         4096.0            // Input full range from OS
   const  double           POT_MAX     = 3.3;// Maximum POT value, vdc
@@ -221,7 +221,7 @@ void setup()
   // Header for time data
   if (verbose>1)
   {
-    sprintf(buffer, "time,cl,vpot,pcnfref,pcnf,err,state,thr,pcnfrefM,pcnfM,errM,stateM,thrM,modPcng,T\n");
+    sprintf(buffer, "time,cl,vpot,pcnfref,pcnfSense,err,state,thr,pcnfrefM,pcnfSenseM,errM,stateM,thrM,modPcng,T\n");
     Serial.print(buffer);
   }
 
@@ -286,6 +286,7 @@ void loop() {
     {
       freqResp = false;
       stepping = true;
+      stepVal = -stepVal;
     }
   }
 #endif

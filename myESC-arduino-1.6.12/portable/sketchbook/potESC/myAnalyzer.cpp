@@ -4,7 +4,8 @@
 #else
   #include "application.h"      // Should not be needed if file .ino or Arduino
 #endif
-#include "analyzer.h"
+
+#include "myAnalyzer.h"
 #include "math.h"
 
 // Global variables
@@ -15,7 +16,7 @@ extern char buffer[256];
 FRAnalyzer::FRAnalyzer(const double omegaLogMin, const double omegaLogMax,
   const double deltaOmegaLog, const int minCycles, const double numCycleScalar, const int numInitCycles,
   const double wSlow, const double T, const int ix[],
-  const int iy[], const int nsig, const int ntf, const String inHeader, const boolean square)
+  const int iy[], const int nsig, const int ntf, const String inHeader)
 {
   aint_           = 0;
   complete_       = false;
@@ -36,7 +37,6 @@ FRAnalyzer::FRAnalyzer(const double omegaLogMin, const double omegaLogMax,
   omegaLogMax_    = omegaLogMax;
   omegaLogMin_    = omegaLogMin;
   sinOmT_         = 0;
-  square_         = square;
   T_              = T;
   timeAtOmega_    = 0;
   timeTargetOmega_= 0;
@@ -230,12 +230,6 @@ double FRAnalyzer::calculateINI_(void)
   double  xNormal;
   timeAtOmega_  = iOmega_ * T_;
   xNormal       = sin(omega_*(timeAtOmega_-2*pi/omega_/4));
-  if ( square )
-  {
-    if      ( xNormal>0 ) xNormal = 1;
-    else if ( xNormal<0 ) xNormal = -1;
-    else                  xNormal = 0;
-  }
   return(xNormal);
 }
 
@@ -310,4 +304,3 @@ void FRAnalyzer::publish()
   Serial.print(buffer);
 */
 }
-
