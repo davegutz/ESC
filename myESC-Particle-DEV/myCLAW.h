@@ -4,9 +4,17 @@
 #include "myTables.h"
 #include "myFilters.h"
 
+/* Control11/2/2016
 static const    double    xALL[6]     = {0,     16,  	35,   	50,   	79,   	100};   // Gain breakpoints, %Nf
 static const    double    yLG[6]      = {2.5, 	2.5, 	3.0, 	  3.1, 	  2.8,	  2.8};   // Loop gain, r/s
 static const    double    yTLD[6]     = {0.36,  0.36, 0.36,  	0.36, 	0.36, 	0.36};  // Lead, s
+*/
+
+// Control 11/3/2016
+static const    double    xALL[6]     = {0,     10,    34,     39,     60,    100,};      // Gain breakpoints, %Nf
+static const    double    yLG[6]      = {3.4,   3.4,   3.5,    4.3,    5.6,   5.6};       // Loop gain, r/s
+static const    double    yTLD[6]     = {0.488, 0.488, 0.310,  0.200,  0.141, 0.141 };    // Lead, s
+
 // Plant
 static const    double          tau         = 0.10; // Input noise filter time constant, sec
 static const    double          tldV        = 0.0;  // Model F2V lead time constant, sec
