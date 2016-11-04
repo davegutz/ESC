@@ -126,7 +126,7 @@ Connections for Arduino:
 
 // Test features
 extern  const int   verbose         = 2;      // Debug, as much as you can tolerate (2)
-bool                beSquare        = false;   // Do step instead of freqResp
+bool                beSquare        = true;   // Do step instead of freqResp
 double              stepVal         = 6;      // Step input, %nf.  Try to make same as freqRespAdder
 
 // Constants always defined
@@ -138,7 +138,7 @@ double              stepVal         = 6;      // Step input, %nf.  Try to make s
   #define F2V_PIN         A2                // Fan speed back-emf input pin on Arduino (PC2)
   #define CL_PIN          4                 // Closed loop 3-way switch 5V or GND (D4 to GND)
   #define CLOCK_TCK       16UL              // Clock tick resolution, micros
-  #define PUBLISH_DELAY   30000UL           // Time between cloud updates (), micros
+  #define PUBLISH_DELAY   15000UL           // Time between cloud updates (), micros
   #define CONTROL_DELAY   15000UL           // Control law wait (), micros
   #define INSCALE         1023.0            // Input full range from OS
   const  double           vpotHalfDB  = 0.35; // Half deadband sliding deadband filter, volts

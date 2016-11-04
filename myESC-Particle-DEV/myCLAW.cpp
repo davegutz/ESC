@@ -130,7 +130,8 @@ else  // open loop
 
   // Model
   dQf_dNf     = P_N_Q[1] + P_N_Q[2]*2*(modelF_*RPM_P); // Uses past value OK
-  tauF        = fmin( J / fmax( dQf_dNf, 1e-32), 0.2);
+  //tauF        = fmin( J / fmax( dQf_dNf, 1e-32), 0.2);
+  tauF        = fmin(fmax(P_LNT_TAU[0] + P_LNT_TAU[1]*log(fmax(modelF_, 1e-8)), 0.02), 0.5);
   if ( RESET )
     modPcng_  = (P_NF_NG[0] + pcnfRef_*RPM_P*P_NF_NG[1])/RPM_P;
   else

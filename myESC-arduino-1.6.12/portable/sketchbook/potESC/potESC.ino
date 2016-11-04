@@ -126,9 +126,8 @@ Connections for Arduino:
 
 // Test features
 extern  const int   verbose         = 2;      // Debug, as much as you can tolerate (2)
-bool                freqResp        = false;  // Perform frequency response test
 bool                beSquare        = true;   // Do step instead of freqResp
-double              stepVal         = 5;      // Step input
+double              stepVal         = 6;      // Step input, %nf.  Try to make same as freqRespAdder
 
 // Constants always defined
 // #define CONSTANT
@@ -142,10 +141,13 @@ double              stepVal         = 5;      // Step input
   #define PUBLISH_DELAY   15000UL           // Time between cloud updates (), micros
   #define CONTROL_DELAY   15000UL           // Control law wait (), micros
   #define INSCALE         1023.0            // Input full range from OS
+  const  double           vpotHalfDB  = 0.35; // Half deadband sliding deadband filter, volts
   const  double           POT_MAX     = 5.0;// Maximum POT value, vdc
-  const  double           POT_MIN     = 0;  // Minimum POT value, vdc
+  const  double           POT_MIN     = 0.0;// Minimum POT value, vdc
   const  double           F2V_MAX     = 5.0;// Maximum F2V value, vdc
-  const  double           F2V_MIN     = 0;  // Minimum F2V value, vdc
+  const  double           F2V_MIN     = 0.0;// Minimum F2V value, vdc
+  const  double           POT_BIA     = 0.36+vpotHalfDB;     // Pot adder, vdc
+  const  double           POT_SCL     = (4.6-vpotHalfDB-POT_BIA)/POT_MAX;  // Pot scalar, vdc
 #else   // Photon
   #define BUTTON_PIN      D2                // Button 3-way input momentary 3.3V, steady GND (D2)
   #define PWM_PIN         A4                // PWM output (A4)
@@ -156,14 +158,18 @@ double              stepVal         = 5;      // Step input
   #define PUBLISH_DELAY   15000UL           // Time between cloud updates (), micros
   #define CONTROL_DELAY   15000UL           // Control law wait (), micros
   #define INSCALE         4096.0            // Input full range from OS
+  const  double           vpotHalfDB  = 0.0; // Half deadband sliding deadband filter, volts
   const  double           POT_MAX     = 3.3;// Maximum POT value, vdc
   const  double           POT_MIN     = 0;  // Minimum POT value, vdc
   const  double           F2V_MAX     = 3.45;// Maximum F2V value, vdc
   const  double           F2V_MIN     = 0;  // Minimum F2V value, vdc
+  const  double           POT_BIA     = 0.0;     // Pot adder, vdc
+  const  double           POT_SCL     = (3.3-POT_BIA)/POT_MAX;  // Pot scalar, vdc
 #endif
 #define FR_DELAY         4000000UL          // Time to start FR, micros
 
 // Test
+bool                      freqResp    = false;  // Perform frequency response test status
 const   int               nsigFn      = 4;  // Length of fn
 const   int               ntfFn       = 2;  // Number of transfer  functions to calculate <= length(ix)
 double                    fn[4]       = {0, 0, 0, 0}; // Functions to analyze
@@ -250,7 +256,7 @@ void loop() {
   unsigned long           now = micros();     // Keep track of time
   static unsigned long    start       = 0UL;  // Time to start looping, micros
   double                  elapsedTime;        // elapsed time, micros
-  double                  updateTime  = 0.0;// Control law update time, sec
+  static double           updateTime  = 0.0;// Control law update time, sec
   static unsigned long    lastControl = 0UL;  // Last control law time, micros
   static unsigned long    lastPublish = 0UL;  // Last publish time, micros
   static unsigned long    lastButton  = 0UL;  // Last button push time, micros
@@ -261,6 +267,7 @@ void loop() {
 ////////////////////////////////////////////////////////////////////////////////////
   static double           vf2v        = 0;    // Converted sensed back emf LM2907 circuit measure, volts
   static double           vpot_filt   = 0;    // Pot value, volts
+  static double           vpotDead    = 0;    // Sliding deadband value, volts
   static double           vpot        = 0;    // Pot value, volts
   static int              f2vValue    = INSCALE/4;   // Dial raw value
   static int              potValue    = INSCALE/2;   // Dial raw value
@@ -296,9 +303,10 @@ void loop() {
     lastPublish  = now;
   }
   unsigned long deltaT = now - lastControl;
-  control = (deltaT >= CONTROL_DELAY-CLOCK_TCK/2 );
+  control     = (deltaT >= CONTROL_DELAY-CLOCK_TCK/2 );
   if ( control )
   {
+    updateTime  = float(deltaT)/1000000.0;
     lastControl   = now;
   }
   if ( freqResp ) analyzing = ( (now-lastFR) >= FR_DELAY && !analyzer->complete() );
@@ -337,15 +345,17 @@ void loop() {
     f2vValue  = analogRead(F2V_PIN);
 #endif
     vf2v      = double(f2vValue)/INSCALE*F2V_MAX;
-    vpot      = fmin(fmax(double(potValue)/INSCALE*POT_MAX, POT_MIN), POT_MAX);
+    vpot      = fmin(fmax((double(potValue)/INSCALE*POT_MAX-POT_BIA)/POT_SCL, POT_MIN), POT_MAX);
   }
 
   // Control law
   if ( control )
   {
-    updateTime   = float(deltaT)/1000000.0;
-    if ( !freqResp ) vpot_filt   = throttleFilter->calculate(vpot,  RESET);  // Freeze pot for FR
-    double potThrottle  = vpot_filt*THTL_MAX/POT_MAX + stepping*stepVal;  // deg
+    vpotDead    = fmax(fmin(vpotDead, vpot+vpotHalfDB), vpot-vpotHalfDB);
+    if ( !freqResp ) vpot_filt   = throttleFilter->calculate(vpotDead,  RESET);  // Freeze pot for FR
+    double potThrottle  = vpot_filt*THTL_MAX/POT_MAX ;  // deg
+    double dNdT   = P_LT_NG[1] / fmax(potThrottle, 1) / RPM_P;   // Rate normalizer, %Ng/deg
+    potThrottle   += stepping*stepVal/dNdT;
     throttle = CLAW->calculate(RESET, updateTime, closingLoop, analyzing, freqResp, exciter, freqRespScalar, freqRespAdder, potThrottle, vf2v);
     if ( elapsedTime>RESEThold ) RESET = 0;
   }
@@ -389,7 +399,7 @@ void loop() {
       {
         sprintf_P(buffer, PSTR("%s,"),    String(elapsedTime,6).c_str());     Serial.print(buffer);
         sprintf_P(buffer, PSTR("%s, "),   String(closingLoop).c_str());       Serial.print(buffer);
-        sprintf_P(buffer, PSTR("%s,  "),  String(vpot_filt).c_str());         Serial.print(buffer);
+        sprintf_P(buffer, PSTR("%s,  "),  String(vpot).c_str());              Serial.print(buffer);
         sprintf_P(buffer, PSTR("%s,"),    String(CLAW->pcnfRef()).c_str());   Serial.print(buffer);
         sprintf_P(buffer, PSTR("%s,  "),  String(CLAW->pcnf()).c_str());      Serial.print(buffer);
         sprintf_P(buffer, PSTR("%s,"),    String(CLAW->e()).c_str());         Serial.print(buffer);
@@ -399,8 +409,8 @@ void loop() {
         sprintf_P(buffer, PSTR("%s,  "),  String(CLAW->modelFS()).c_str());   Serial.print(buffer);
         sprintf_P(buffer, PSTR("%s,"),    String(CLAW->eM()).c_str());        Serial.print(buffer);
         sprintf_P(buffer, PSTR("%s,"),    String(CLAW->intStateM()).c_str()); Serial.print(buffer);
-        sprintf_P(buffer, PSTR("%s,"),    String(CLAW->modelG()).c_str());    Serial.print(buffer);
         sprintf_P(buffer, PSTR("%s,  "),  String(CLAW->throttleM()).c_str()); Serial.print(buffer);
+        sprintf_P(buffer, PSTR("%s,"),    String(CLAW->modelG()).c_str());    Serial.print(buffer);
         sprintf_P(buffer, PSTR("%s,\n"),  String(updateTime,6).c_str());      Serial.print(buffer);
       }
     }
