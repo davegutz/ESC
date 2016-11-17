@@ -113,6 +113,7 @@ Connections for Arduino:
     30-Sep-2016   DA Gutz   Arduino added
     10-Oct-2016   DA Gutz   First frequency response completion
     30-Oct-2016   DA Gutz   Gain scheduling
+    16-Nov-2016   DA Gutz   Retune again again
 
   Distributed as-is; no warranty is given.
 */
@@ -122,7 +123,8 @@ Connections for Arduino:
 //
 
 // Disable flags if needed.  Usually commented
-//#define BARE_MICROPROCESSOR                       // Run unconnected testing
+#define BARE_MICROPROCESSOR                   // Run unconnected testing
+//#define DISTURB_CONTROL                       // Use disturbance rejection gains in CLAW
 
 // Test features
 extern  const int   verbose         = 2;      // Debug, as much as you can tolerate (2)
@@ -138,14 +140,10 @@ double              stepVal         = 6;      // Step input, %nf.  Try to make s
   #define F2V_PIN         A2                // Fan speed back-emf input pin on Arduino (PC2)
   #define CL_PIN          4                 // Closed loop 3-way switch 5V or GND (D4 to GND)
   #define CLOCK_TCK       16UL              // Clock tick resolution, micros
-  #define PUBLISH_DELAY   15000UL           // Time between cloud updates (), micros
-  #define CONTROL_DELAY   15000UL           // Control law wait (), micros
   #define INSCALE         1023.0            // Input full range from OS
-  const  double           vpotHalfDB  = 0.35; // Half deadband sliding deadband filter, volts
+  const  double           vpotHalfDB  = 0.05; // Half deadband sliding deadband filter, volts
   const  double           POT_MAX     = 5.0;// Maximum POT value, vdc
-  const  double           POT_MIN     = 0.0;// Minimum POT value, vdc
   const  double           F2V_MAX     = 5.0;// Maximum F2V value, vdc
-  const  double           F2V_MIN     = 0.0;// Minimum F2V value, vdc
   const  double           POT_BIA     = 0.36+vpotHalfDB;     // Pot adder, vdc
   const  double           POT_SCL     = (4.6-vpotHalfDB-POT_BIA)/POT_MAX;  // Pot scalar, vdc
 #else   // Photon
@@ -155,18 +153,19 @@ double              stepVal         = 6;      // Step input, %nf.  Try to make s
   #define F2V_PIN         A2                // Fan speed back-emf input pin on Photon (A2)
   #define CL_PIN          D0                // Closed loop 3-way switch 3.3V or GND  (D0)
   #define CLOCK_TCK       8UL               // Clock tick resolution, micros
-  #define PUBLISH_DELAY   15000UL           // Time between cloud updates (), micros
-  #define CONTROL_DELAY   15000UL           // Control law wait (), micros
   #define INSCALE         4096.0            // Input full range from OS
   const  double           vpotHalfDB  = 0.0; // Half deadband sliding deadband filter, volts
   const  double           POT_MAX     = 3.3;// Maximum POT value, vdc
-  const  double           POT_MIN     = 0;  // Minimum POT value, vdc
   const  double           F2V_MAX     = 3.45;// Maximum F2V value, vdc
-  const  double           F2V_MIN     = 0;  // Minimum F2V value, vdc
   const  double           POT_BIA     = 0.0;     // Pot adder, vdc
   const  double           POT_SCL     = (3.3-POT_BIA)/POT_MAX;  // Pot scalar, vdc
 #endif
-#define FR_DELAY         4000000UL          // Time to start FR, micros
+#define PUBLISH_DELAY     15000UL           // Time between cloud updates (), micros
+#define CONTROL_DELAY     15000UL           // Control law wait (), micros
+#define FR_DELAY          4000000UL         // Time to start FR, micros
+const   double            F2V_MIN     = 0.0;// Minimum F2V value, vdc
+const   double            POT_MIN     = 0;  // Minimum POT value, vdc
+const   double            DENS_SI     = 1.225;  // Air density, kg/m^3
 
 // Test
 bool                      freqResp    = false;  // Perform frequency response test status
@@ -227,7 +226,7 @@ void setup()
   // Header for time data
   if (verbose>1)
   {
-    sprintf(buffer, "time,cl,vpot,pcnfref,pcnfSense,err,state,thr,pcnfrefM,pcnfSenseM,errM,stateM,thrM,modPcng,T\n");
+    sprintf(buffer, "time,cl,vpot,pcntref,pcntSense,err,state,thr,pcntrefM,pcntSenseM,errM,stateM,thrM,modPcng,T\n");
     Serial.print(buffer);
   }
 
@@ -270,7 +269,7 @@ void loop() {
   static double           vpotDead    = 0;    // Sliding deadband value, volts
   static double           vpot        = 0;    // Pot value, volts
   static int              f2vValue    = INSCALE/4;   // Dial raw value
-  static int              potValue    = INSCALE/2;   // Dial raw value
+  static int              potValue    = INSCALE/3;   // Dial raw value
 
   // Executive
   if ( start == 0UL ) start = now;
@@ -356,7 +355,7 @@ void loop() {
     double potThrottle  = vpot_filt*THTL_MAX/POT_MAX ;  // deg
     double dNdT   = P_LT_NG[1] / fmax(potThrottle, 1) / RPM_P;   // Rate normalizer, %Ng/deg
     potThrottle   += stepping*stepVal/dNdT;
-    throttle = CLAW->calculate(RESET, updateTime, closingLoop, analyzing, freqResp, exciter, freqRespScalar, freqRespAdder, potThrottle, vf2v);
+    throttle = CLAW->calculate(RESET, updateTime, closingLoop, analyzing, freqResp, exciter, freqRespScalar, freqRespAdder, potThrottle, vf2v, DENS_SI);
     if ( elapsedTime>RESEThold ) RESET = 0;
   }
 
@@ -371,8 +370,8 @@ void loop() {
   {
     fn[0]   = throttle;
     fn[1]   = CLAW->modelFS();
-    fn[2]   = CLAW->pcnf();
-    fn[3]   = CLAW->pcnfRef();
+    fn[2]   = CLAW->pcnt();
+    fn[3]   = CLAW->pcntRef();
     if ( analyzing ) exciter = analyzer->calculate(fn, nsigFn);  // use previous exciter for everything
   }
 
@@ -382,9 +381,9 @@ void loop() {
     if ( freqResp )
     {
       sprintf(buffer, "%s,%s,%s,%s,%s,%s,%s,",
-        String(elapsedTime,6).c_str(), String(CLAW->pcnfRef()).c_str(),
+        String(elapsedTime,6).c_str(), String(CLAW->pcntRef()).c_str(),
         String(exciter).c_str(), String(throttle).c_str(),
-        String(CLAW->modelFS()).c_str(), String(CLAW->pcnf()).c_str(),
+        String(CLAW->modelFS()).c_str(), String(CLAW->pcnt()).c_str(),
         String(updateTime,6).c_str());
       Serial.print(buffer);
       if( !analyzer->complete() )
@@ -400,12 +399,12 @@ void loop() {
         sprintf_P(buffer, PSTR("%s,"),    String(elapsedTime,6).c_str());     Serial.print(buffer);
         sprintf_P(buffer, PSTR("%s, "),   String(closingLoop).c_str());       Serial.print(buffer);
         sprintf_P(buffer, PSTR("%s,  "),  String(vpot).c_str());              Serial.print(buffer);
-        sprintf_P(buffer, PSTR("%s,"),    String(CLAW->pcnfRef()).c_str());   Serial.print(buffer);
-        sprintf_P(buffer, PSTR("%s,  "),  String(CLAW->pcnf()).c_str());      Serial.print(buffer);
+        sprintf_P(buffer, PSTR("%s,"),    String(CLAW->pcntRef()).c_str());   Serial.print(buffer);
+        sprintf_P(buffer, PSTR("%s,  "),  String(CLAW->pcnt()).c_str());      Serial.print(buffer);
         sprintf_P(buffer, PSTR("%s,"),    String(CLAW->e()).c_str());         Serial.print(buffer);
         sprintf_P(buffer, PSTR("%s,"),    String(CLAW->intState()).c_str());  Serial.print(buffer);
         sprintf_P(buffer, PSTR("%s,  "),  String(throttle).c_str());          Serial.print(buffer);
-        sprintf_P(buffer, PSTR("%s,"),    String(CLAW->pcnfRef()).c_str());   Serial.print(buffer);
+        sprintf_P(buffer, PSTR("%s,"),    String(CLAW->pcntRef()).c_str());   Serial.print(buffer);
         sprintf_P(buffer, PSTR("%s,  "),  String(CLAW->modelFS()).c_str());   Serial.print(buffer);
         sprintf_P(buffer, PSTR("%s,"),    String(CLAW->eM()).c_str());        Serial.print(buffer);
         sprintf_P(buffer, PSTR("%s,"),    String(CLAW->intStateM()).c_str()); Serial.print(buffer);
