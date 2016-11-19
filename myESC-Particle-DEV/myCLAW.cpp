@@ -43,8 +43,6 @@ double ControlLaw::calculate(const int RESET, const double updateTime, const boo
   const double freqRespAdder, const double potThrottle, const double vf2v, const double DENS_SI)
 {
   double    tld, lg, tldm, lgm; // Gain schedule lookup table outputs
-  double    dQt_dNt;            // Load line for inertia calculation, ft-lbf/rpm
-  double    tauT;               // Model Fan lag time constant, sec
   double    throttle;           // Return value throttle command, deg
 
   // Inputs
@@ -88,6 +86,26 @@ double ControlLaw::calculate(const int RESET, const double updateTime, const boo
   throttleCLM_  = exp((pcngCLM*RPM_P  - P_LT_NG[0])/P_LT_NG[1]);
 
   // Rate Limits
+  throttle = rateLims(RESET, updateTime, closingLoop, freqResp, exciter, freqRespScalar, freqRespAdder, potThrottle);
+
+  // Final throttle limits
+  throttle = fmax(fmin(throttle, THTL_MAX), THTL_MIN);
+
+  // Model
+  model(RESET, updateTime, DENS_SI);
+
+  if ( !closingLoop ) intState_ = throttle;
+  return( throttle );
+}
+
+
+// Rate limits
+double ControlLaw::rateLims(const int RESET, const double updateTime, const boolean closingLoop,
+  const boolean freqResp, const double exciter, const double freqRespScalar,  const double freqRespAdder,
+  const double potThrottle)
+{
+  double throttle;
+  // Rate Limits
   double stepChangeMaxInit  = 1*updateTime;         // Maximum allowable step change reset, deg/update
   double stepChangeMax      = RATE_MAX*updateTime;  // Maximum allowable step change, deg/update
   if ( closingLoop )
@@ -125,21 +143,24 @@ else  // open loop
   else            throttle  = throttleM_  = throttleL_;
   } // open loop
 
-  // Final throttle limits
-  throttle = fmax(fmin(throttle, THTL_MAX), THTL_MIN);
+  return ( throttle );
+}
 
+
+// Embedded model
+void ControlLaw::model(const int RESET, const double updateTime, const double DENS_SI)
+{
   // Model
+  double    dQt_dNt;            // Load line for inertia calculation, ft-lbf/rpm
+  double    tauT;               // Model Fan lag time constant, sec
   if ( RESET )
     modPcng_  = (P_NT_NG[0] + pcntRef_*RPM_P*P_NT_NG[1])/RPM_P;
   else
     modPcng_  = fmax((P_LT_NG[0] + P_LT_NG[1]*log(double(int(throttleM_)))) / RPM_P, 0.0);
   double Fg_SI  = FG_SI * pow(modelG_/100, 3);           // N
   double Vw_SI  = sqrt(Fg_SI / AREA_SI / DENS_SI);    // m/s
-  //dQt_dNt     = P_N_Q[1] + P_N_Q[2]*2*(modelT_*RPM_P); // Uses past value OK
   dQt_dNt     = DCPDL * DENS_SI * D_SI*D_SI * AREA_SI * 3.1415926 / 240 * (Vw_SI-DELTAV) / LAMBDA * NM_2_FTLBF;
   dQt_dNt     = fmin(dQt_dNt, -1e-16);
-  //tauT        = fmin( J / fmax( dQt_dNt, 1e-32), 0.2);
-  //tauT        = fmin(fmax(P_LNT_TAU[0] + P_LNT_TAU[1]*log(fmax(modelT_, 1e-8)), 0.02), 0.5);
   tauT        = fmin(fmax(-J / dQt_dNt, 0.02), 0.5);
   modelG_     = modelFilterG_->calculate(modPcng_,  RESET);
   modelT_     = modelFilterT_->calculate((P_NG_NT[0] + modelG_*RPM_P*P_NG_NT[1])/RPM_P,  RESET,
@@ -149,11 +170,7 @@ else  // open loop
   if ( verbose > 2 )
   {
     sprintf(buffer, "T: %s,%s,", String(modelT_).c_str(),String(dQt_dNt,16).c_str()); Serial.print(buffer);
-    sprintf(buffer, "%s,%s,", String(tauT).c_str(), String(tldT).c_str()); Serial.print(buffer);
-    sprintf(buffer, "%s,%s,\n", String(P_N_Q[1],10).c_str(), String(P_N_Q[2],10).c_str()); Serial.print(buffer);
+    sprintf(buffer, "%s,%s,\n", String(tauT).c_str(), String(tldT).c_str()); Serial.print(buffer);
   }
   */
-
-  if ( !closingLoop ) intState_ = throttle;
-  return( throttle );
 }

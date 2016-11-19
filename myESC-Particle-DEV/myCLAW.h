@@ -16,12 +16,13 @@ static const    double    yLG[6]      = {3.4,   3.4,   3.5,    4.3,    5.6,   5.
 static const    double    yTLD[6]     = {0.488, 0.488, 0.310,  0.200,  0.141, 0.141 };    // Lead, s
 */
 
-// Control Ref Step 11/15/2016
 #ifndef DISTURB_CONTROL
+  // Control Ref Step 11/19/2016
   static const    double    xALL[6]     = {0.,	  16.,	  25.,    47.5,	  62.,    80.};     // Gain breakpoints, %Nt
-  static const    double    yLG[6]      = {2.5,   2.5,    2.8,    3.3,    4.,     4.8};     // Loop gain, r/s
-  static const    double    yTLD[6]     = {0.500, 0.500,  0.320,  0.230,  0.175,  0.175};   // Lead, s
+  static const    double    yLG[6]      = {2.4,   2.4,    2.7,    3.2,    3.75,   4.4};     // Loop gain, r/s
+  static const    double    yTLD[6]     = {0.475, 0.475,  0.325,  0.225,  0.200,  0.200};   // Lead, s
 #else
+  // Control Ref Step 11/15/2016
   static const    double    xALL[6]     = {0.,	  16.,	  25.,    47.5,	  62.,    80.};     // Gain breakpoints, %Nt
   static const    double    yLG[6]      = {3.8,   3.8,    3.4,    3.5,    4.1,    5.5};     // Loop gain, r/s
   static const    double    yTLD[6]     = {0.488, 0.488,  0.340,  0.255,  0.210,  0.210};   // Lead, s
@@ -41,19 +42,17 @@ static const    double          THTL_MAX    = 180;  // Maximum throttle to preve
 static const    double          THTL_MIN    = 0;    // Minimum throttle, deg
 static const    double 	        RATE_MAX 	  = 240;  // Maximum throttle change rate, deg/sec to avoid lockout
 // See calibration<date>.xlsx for these hardware conversion derivations
-static const    double          P_LNT_TAU[2]= {0.698, -0.1573};   // Coeff Nt(%) to TauT(s)
-static const    double          P_V4_NT[3]  = {0, 14098, -171};   // Coeff V4(v) to NT(rpm)
+static const    double          P_V4_NT[3]  = {0, 14543, -351};   // Coeff V4(v) to NT(rpm)
 static const    double          P_LT_NG[2]  = {-28327,  14190};   // Coeff throttle(deg) to NG(rpm)
-static const    double          P_NG_NT[2]  = {-10231,  1.0237};  // Coeff NG(rpm) to NT(rpm)
-static const    double          P_NT_NG[2]  = {10154,   0.9683};  // Coeff NT(rpm) to NG(rpm)
-static const    double          P_N_Q[3]    = {0,  1.75e-7,  1.154e-11};  // Load line N(rpm) to Q(ft-lbf)
+static const    double          P_NG_NT[2]  = {-8712,   0.9826};  // Coeff NG(rpm) to NT(rpm)
+static const    double          P_NT_NG[2]  = { 8893,   1.0165};  // Coeff NT(rpm) to NG(rpm)
 static const    double          RPM_P       = 461;  // (rpm/%)
 static const    double          FG_SI       = 4.425;    // Thrust at rated speed, N
 static const    double          AREA_SI     = 0.002121; // Flow area, m^2
-static const    double          DCPDL       = -.770;    // dCpdLambda, dimensionless.  Cp is power coefficient and Lambda is speed tip ratio
+static const    double          DCPDL       = -1.447;   // dCpdLambda, dimensionless.  Cp is power coefficient and Lambda is speed tip ratio
 static const    double          D_SI        = 0.055;    // Turbine dia, m
 static const    double          LAMBDA      = 2.64;     // Turbine tip speed ratio to air velocity, dimensionless
-static const    double          DELTAV      = 4;        // Air velocity turbine first moves, m/s
+static const    double          DELTAV      = 7;        // Air velocity turbine first moves, m/s
 static const    double          NM_2_FTLBF  = 0.738;    // ft-lbf/N-m conversion
 
 // Control Law Class
@@ -78,6 +77,10 @@ public:
   double  pcntRef(void)   { return( pcntRef_    );};
   double  throttleM(void) { return( throttleM_  );};
 private:
+  double  rateLims(const int RESET, const double updateTime, const boolean closingLoop,
+    const boolean freqResp, const double exciter, const double freqRespScalar,
+    const double freqRespAdder, const double potThrottle);
+  void    model(const int RESET, const double updateTime, const double DENS_SI);
   LeadLagTustin *modelFilterG_; // Tustin lag model gas gen
   LeadLagTustin *modelFilterT_; // Tustin lag model turbine
   LeadLagTustin *modelFilterV_; // Tustin lag model F2V sensor
