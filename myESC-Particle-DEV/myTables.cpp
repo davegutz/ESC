@@ -4,6 +4,7 @@
   #include "application.h"      // Should not be needed if file .ino or Arduino
 #endif
 #include "myTables.h"
+#include "math.h"
 
 // Global variables
 extern char buffer[256];
@@ -96,6 +97,27 @@ double tab1(double x, double *v, double *y, int n){
     return *(y+low) + dx * (*(y+high) - *(y+low));
 }   /* End tab1 */
 
+/* tab1clip:    Univariant arbitrarily spaced table look-up with clipping.
+*
+*   Author:     Dave Gutz 20-Nov-16
+*   Inputs:
+*       n           Number of points
+*       x           Independent variable
+*       v           Breakpoint table
+*       y           Table data
+*   Outputs:
+*       tab1        Result of table lookup
+*/
+double tab1clip(double x, double *v, double *y, int n){
+    double dx;
+    int high, low;
+    void binsearch(double x, double *v, int n, int *high,
+                    int *low, double *dx);
+    if(n<1) return y[0];
+    binsearch(x, v, n, &high, &low, &dx);
+    return *(y+low) + fmax(fmin(dx, 1.), 0.) * (*(y+high) - *(y+low));
+}   /* End tab1clip */
+
 /* T A B 2
 *
 *   Purpose:    Bivariant arbitrarily spaced table look-up.
@@ -177,8 +199,28 @@ double TableInterp1D::interp(const double x)
   return(tab1(x, x_, v_, n1_));
 }
 
-
 // 1-D Interpolation Table Lookup
+// constructors
+TableInterp1Dclip::TableInterp1Dclip() : TableInterp(){}
+TableInterp1Dclip::TableInterp1Dclip(const unsigned int n, const double x[], const double v[])
+: TableInterp(n, x)
+{
+  v_ = new double[n1_];
+  for ( int i=0; i<n1_; i++ )
+  {
+    v_[i]   = v[i];
+  }
+}
+TableInterp1Dclip::~TableInterp1Dclip(){}
+// operators
+// functions
+double TableInterp1Dclip::interp(const double x)
+{
+  return(tab1(x, x_, v_, n1_));
+}
+
+
+// 2-D Interpolation Table Lookup
 // constructors
 TableInterp2D::TableInterp2D() : TableInterp(){}
 TableInterp2D::TableInterp2D(const unsigned int n, const unsigned int m, const double x[],

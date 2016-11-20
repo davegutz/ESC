@@ -123,7 +123,7 @@ Connections for Arduino:
 //
 
 // Disable flags if needed.  Usually commented
-#define BARE_MICROPROCESSOR                   // Run unconnected testing
+//#define BARE_MICROPROCESSOR                   // Run unconnected testing
 //#define DISTURB_CONTROL                       // Use disturbance rejection gains in CLAW
 
 // Test features

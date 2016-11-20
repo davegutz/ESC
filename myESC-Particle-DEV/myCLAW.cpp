@@ -9,6 +9,12 @@
 #include "myCLAW.h"
 #include "math.h"
 
+/* TODO
+  1.  Pre-calc the following equation
+      dQt_dNt     = DCPDL * DENS_SI * D_SI*D_SI * AREA_SI * 3.1415926 / 240 * (Vw_SI-DELTAV) / LAMBDA * NM_2_FTLBF;
+  2.
+
+*/
 
 // Global variables
 extern const int verbose;
@@ -19,8 +25,8 @@ ControlLaw::ControlLaw()
 : intState_(0), intStateM_(0), modelG_(0), modelT_(0), modelTS_(0), modPcng_(0),
   pcnt_(0), pcntRef_(0), throttleM_(0), throttleL_(0), throttleML_(0)
 {
-  LG_T_   = new TableInterp1D(sizeof(xALL)/sizeof(double), xALL, yLG);
-  TLD_T_  = new TableInterp1D(sizeof(xALL)/sizeof(double), xALL, yTLD);
+  LG_T_   = new TableInterp1Dclip(sizeof(xALL)/sizeof(double), xALL, yLG);
+  TLD_T_  = new TableInterp1Dclip(sizeof(xALL)/sizeof(double), xALL, yTLD);
   modelFilterG_   = new LeadLagTustin(0, tldG, tauG,  -1e6, 1e6);
   modelFilterT_   = new LeadLagTustin(0, tldT, 1.00,  -1e6, 1e6);
   modelFilterV_   = new LeadLagTustin(0, tldV, tauF2V,-1e6, 1e6);
@@ -29,8 +35,8 @@ ControlLaw::ControlLaw(const double T)
 : intState_(0), intStateM_(0), modelG_(0), modelT_(0), modelTS_(0), modPcng_(0),
   pcnt_(0), pcntRef_(0), throttleM_(0), throttleL_(0), throttleML_(0)
 {
-  LG_T_   = new TableInterp1D(sizeof(xALL)/sizeof(double), xALL, yLG);
-  TLD_T_  = new TableInterp1D(sizeof(xALL)/sizeof(double), xALL, yTLD);
+  LG_T_   = new TableInterp1Dclip(sizeof(xALL)/sizeof(double), xALL, yLG);
+  TLD_T_  = new TableInterp1Dclip(sizeof(xALL)/sizeof(double), xALL, yTLD);
   modelFilterG_   = new LeadLagTustin(T, tldG, tauG,  -1e6, 1e6);
   modelFilterT_   = new LeadLagTustin(T, tldT, 1.00,  -1e6, 1e6);
   modelFilterV_   = new LeadLagTustin(T, tldV, tauF2V,-1e6, 1e6);

@@ -84,8 +84,8 @@ private:
   LeadLagTustin *modelFilterG_; // Tustin lag model gas gen
   LeadLagTustin *modelFilterT_; // Tustin lag model turbine
   LeadLagTustin *modelFilterV_; // Tustin lag model F2V sensor
-  TableInterp1D *LG_T_;       // Gain schedule lead time constant, s
-  TableInterp1D *TLD_T_;      // Gain schedule loop gain, r/s
+  TableInterp1Dclip *LG_T_;       // Gain schedule lead time constant, s
+  TableInterp1Dclip *TLD_T_;      // Gain schedule loop gain, r/s
   double        e_;           // Closed loop error, %Nt
   double        eM_;          // Closed loop model error, %Nt
   double        intState_;    // PI control integrate state, deg

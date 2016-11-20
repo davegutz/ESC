@@ -5,6 +5,7 @@
 
 void    binsearch(double x, double *v, int n, int *high, int *low, double *dx);
 double  tab1(double x, double *v, double *y, int n);
+double  tab1clip(double x, double *v, double *y, int n);
 double  tab2(double x1, double x2, double *v1, double *v2, double *y, int n1, int n2);
 
 class TableInterp
@@ -29,6 +30,19 @@ public:
   TableInterp1D();
   TableInterp1D(const unsigned int n, const double x[], const double v[]);
   ~TableInterp1D();
+  //operators
+  //functions
+  virtual double  interp(const double x);
+protected:
+};
+
+// 1-D Interpolation Table Lookup with Clipping
+class TableInterp1Dclip: public TableInterp
+{
+public:
+  TableInterp1Dclip();
+  TableInterp1Dclip(const unsigned int n, const double x[], const double v[]);
+  ~TableInterp1Dclip();
   //operators
   //functions
   virtual double  interp(const double x);
