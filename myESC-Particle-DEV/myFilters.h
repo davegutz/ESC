@@ -5,6 +5,7 @@
 
   07-Jan-2015   Dave Gutz   Created
   30-Sep-2016   Dave Gutz   LeadLagTustin
+  23-Nov-2016   Dave Gutz   LeadLagExp
  ****************************************************/
 
 #ifndef _myFilters_H
@@ -53,6 +54,31 @@ protected:
   double a_;
   double b_;
   double state_;
+  double tld_;
+};
+
+// Tustin rate-lag rate calculator, non-pre-warped, no limits, fixed update rate
+class LeadLagExp: public DiscreteFilter
+{
+public:
+  LeadLagExp();
+  LeadLagExp(const double T, const double tld, const double tau, const double min, const double max);
+//  LeadLagExp(const LeadLagExp & RLT);
+  ~LeadLagExp();
+  //operators
+  //functions
+  virtual double  calculate(const double in, const int RESET);
+  virtual double  calculate(const double in, const int RESET, const double T);
+  virtual double  calculate(double in, int RESET, const double T,const double tau, const double tld);
+  virtual void    assignCoeff(const double tld, const double tau, const double T);
+  virtual double  rateStateCalc(const double in);
+  virtual double  rateStateCalc(const double in, const double T);
+  virtual double  state(void);
+protected:
+  double a_;
+  double b_;
+  double state_;
+  double instate_;
   double tld_;
 };
 
@@ -133,4 +159,3 @@ protected:
 };
 
 #endif
-

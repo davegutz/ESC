@@ -5,6 +5,7 @@
 
   07-Jan-2015   Dave Gutz   Created
   30-Sep-2016   Dave Gutz   LeadLagTustin
+  23-Nov-2016   Dave Gutz   LeadLagExp
  ****************************************************/
 #include "myFilters.h"
 #include "math.h"
@@ -138,6 +139,82 @@ void LeadLagTustin::assignCoeff(const double tld, const double tau, const double
   b_    = (2.0*tld_ + T_) / (2.0*tau_ + T_);
 }
 double LeadLagTustin::state(void){return(state_);};
+
+
+
+// Exponential lead-lag calculator, non-pre-warped, no limits, fixed update rate
+// constructors
+LeadLagExp::LeadLagExp() : DiscreteFilter(){}
+LeadLagExp::LeadLagExp(const double T, const double tld, const double tau, const double min, const double max)
+: DiscreteFilter(T, tau, min, max)
+{
+  LeadLagExp::assignCoeff(tld, tau, T);
+}
+//LeadLagExp::LeadLagExp(const LeadLagExp & RLT)
+//: DiscreteFilter(RLT.T_, RLT.tau_, RLT.min_, RLT.max_){}
+LeadLagExp::~LeadLagExp(){}
+// operators
+// functions
+double LeadLagExp::calculate(double in, int RESET)
+{
+  if (RESET>0)
+  {
+    state_ = in;
+  }
+  double out = LeadLagExp::rateStateCalc(in);
+  return(out);
+}
+double LeadLagExp::calculate(double in, int RESET, const double T,const double tau, const double tld)
+{
+  if (RESET>0)
+  {
+    instate_ = in;
+    state_ = in;
+  }
+  LeadLagExp::assignCoeff(tld, tau, T);
+  double out = LeadLagExp::rateStateCalc(in, T);
+  return(out);
+}
+double LeadLagExp::calculate(double in, int RESET, const double T)
+{
+  if (RESET>0)
+  {
+    instate_ = in;
+    state_ = in;
+  }
+  double out = LeadLagExp::rateStateCalc(in, T);
+  return(out);
+}
+double LeadLagExp::rateStateCalc(const double in)
+{
+  rate_       =  fmax(fmin(b_*(in - state_), max_), min_);
+  state_      += (a_*(instate_-state_) + rate_);
+  instate_	  =  in;
+  return ( state_ );
+}
+double LeadLagExp::rateStateCalc(const double in, const double T)
+{
+  assignCoeff(tld_, tau_, T);
+  double out = rateStateCalc(in);
+  return ( out );
+}
+void LeadLagExp::assignCoeff(const double tld, const double tau, const double T)
+{
+  T_    = T;
+  tld_  = fmax(tld, 0.0);
+  tau_  = fmax(tau, 0.0);
+  if ( tau_ > 0. )
+  {
+	   a_    = 1.0 - exp(-T_/tau_);
+	    b_    = 1.0 + a_*(tld_-tau_)/T_;
+  }
+  else
+  {
+	   a_ = 1.0;
+	    b_ = 1.0 + tld_/T_;
+  }
+}
+double LeadLagExp::state(void){return(state_);};
 
 
 // Exponential rate-lag rate calculator, non-pre-warped, no limits, fixed update rate

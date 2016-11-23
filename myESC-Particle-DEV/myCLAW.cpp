@@ -27,9 +27,9 @@ ControlLaw::ControlLaw()
 {
   LG_T_   = new TableInterp1Dclip(sizeof(xALL)/sizeof(double), xALL, yLG);
   TLD_T_  = new TableInterp1Dclip(sizeof(xALL)/sizeof(double), xALL, yTLD);
-  modelFilterG_   = new LeadLagTustin(0, tldG, tauG,  -1e6, 1e6);
-  modelFilterT_   = new LeadLagTustin(0, tldT, 1.00,  -1e6, 1e6);
-  modelFilterV_   = new LeadLagTustin(0, tldV, tauF2V,-1e6, 1e6);
+  modelFilterG_   = new LeadLagExp(0, tldG, tauG,  -1e6, 1e6);
+  modelFilterT_   = new LeadLagExp(0, tldT, 1.00,  -1e6, 1e6);
+  modelFilterV_   = new LeadLagExp(0, tldV, tauF2V,-1e6, 1e6);
 }
 ControlLaw::ControlLaw(const double T)
 : intState_(0), intStateM_(0), modelG_(0), modelT_(0), modelTS_(0), modPcng_(0),
@@ -37,9 +37,9 @@ ControlLaw::ControlLaw(const double T)
 {
   LG_T_   = new TableInterp1Dclip(sizeof(xALL)/sizeof(double), xALL, yLG);
   TLD_T_  = new TableInterp1Dclip(sizeof(xALL)/sizeof(double), xALL, yTLD);
-  modelFilterG_   = new LeadLagTustin(T, tldG, tauG,  -1e6, 1e6);
-  modelFilterT_   = new LeadLagTustin(T, tldT, 1.00,  -1e6, 1e6);
-  modelFilterV_   = new LeadLagTustin(T, tldV, tauF2V,-1e6, 1e6);
+  modelFilterG_   = new LeadLagExp(T, tldG, tauG,  -1e6, 1e6);
+  modelFilterT_   = new LeadLagExp(T, tldT, 1.00,  -1e6, 1e6);
+  modelFilterV_   = new LeadLagExp(T, tldV, tauF2V,-1e6, 1e6);
 }
 
 
@@ -82,13 +82,17 @@ double ControlLaw::calculate(const int RESET, const double updateTime, const boo
   double KpM  	= Kp;
   double dNdT   = P_LT_NG[1] / fmax(potThrottle, 1) / RPM_P;   // Rate normalizer, %Ng/deg
   double riMax  = RATE_MAX*dNdT;
+
   // Hardware
+  p_            = fmax(fmin(Kp*e_, NG_MAX), -NG_MAX);
   intState_     = fmax(fmin(intState_  + updateTime*fmax(fmin(Ki*e_,  0.5*riMax), -0.5*riMax), 	NG_MAX), -NG_MAX);
-  double pcngCL = fmax(fmin(intState_  + fmax(fmin(Kp*e_,      		    NG_MAX),    -NG_MAX), 		NG_MAX), NG_MIN);
+  double pcngCL = fmax(fmin(intState_  + p_,	NG_MAX), NG_MIN);
   throttleCL_   = exp((pcngCL*RPM_P   - P_LT_NG[0])/P_LT_NG[1]);
+
   // Model
+  pM_           = fmax(fmin(KpM*eM_, NG_MAX), -NG_MAX);
   intStateM_    = fmax(fmin(intStateM_ + updateTime*fmax(fmin(KiM*eM_,0.5*riMax), -0.5*riMax), 	NG_MAX), -NG_MAX);
-  double pcngCLM  = fmax(fmin(intStateM_ + fmax(fmin(KpM*eM_,  			  NG_MAX), 	  -NG_MAX), 		NG_MAX), NG_MIN);
+  double pcngCLM= fmax(fmin(intStateM_ + pM_,	NG_MAX), NG_MIN);
   throttleCLM_  = exp((pcngCLM*RPM_P  - P_LT_NG[0])/P_LT_NG[1]);
 
   // Rate Limits
@@ -100,7 +104,8 @@ double ControlLaw::calculate(const int RESET, const double updateTime, const boo
   // Model
   model(RESET, updateTime, DENS_SI);
 
-  if ( !closingLoop ) intState_ = throttle;
+  if ( !closingLoop ) intState_  = fmax((P_LT_NG[0] + P_LT_NG[1]*log(throttle)) / RPM_P, 0.0);
+
   return( throttle );
 }
 
