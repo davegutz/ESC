@@ -8,7 +8,7 @@
   #include <Arduino.h>  // Used instead of Print.h - breaks Serial
 #else   // Photon
   #include "application.h"      // Should not be needed if file ino or Arduino
-  SYSTEM_THREAD(ENABLED);       // Make sure heat system code always run regardless of network status
+  SYSTEM_THREAD(ENABLED);       // Make sure code always run regardless of network status
 #endif
 #include "myAnalyzer.h"
 #include "myTables.h"
