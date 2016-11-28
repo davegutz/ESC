@@ -16,7 +16,7 @@
     "taskName": "flash",             
     "suppressTaskName": false, 
     "isTestCommand": true, 
-    "args": ["PhotoExpESC1", "firmware.bin"] 
+    "args": ["--usb", "firmware.bin"] 
 }    
 ]     
 } 
