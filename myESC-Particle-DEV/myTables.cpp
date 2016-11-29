@@ -1,7 +1,7 @@
 #ifdef ARDUINO
-  #include <Arduino.h> //needed for Serial.println
+#include <Arduino.h> //needed for Serial.println
 #else
-  #include "application.h"      // Should not be needed if file .ino or Arduino
+#include "application.h" // Should not be needed if file .ino or Arduino
 #endif
 #include "myTables.h"
 #include "math.h"
@@ -35,35 +35,40 @@ extern char buffer[256];
 *   Global variables used:  None.
 *   Functions called:   None.
 */
-void binsearch(double x, double *v, int n, int *high, int *low, double *dx){
-    int mid;
+void binsearch(double x, double *v, int n, int *high, int *low, double *dx)
+{
+  int mid;
 
-    /* Initialize high and low  */
-    *low    = 0;
-    *high   = n-1;
+  /* Initialize high and low  */
+  *low = 0;
+  *high = n - 1;
 
-    /* Check endpoints  */
-    if(x >= *(v+*high)){
-        *low    = *high;
-        *dx     = 0.;
-    }
-    else if(x <= *(v+*low)){
-        *high   = *low;
-        *dx     = 0.;
-    }
+  /* Check endpoints  */
+  if (x >= *(v + *high))
+  {
+    *low = *high;
+    *dx = 0.;
+  }
+  else if (x <= *(v + *low))
+  {
+    *high = *low;
+    *dx = 0.;
+  }
 
-    /* Search if necessary  */
-    else{
-        while( (*high -  *low) > 1){
-            mid = (*low + *high) / 2;
-            if(*(v+mid) > x)
-                *high   = mid;
-            else
-                *low    = mid;
-        }
-        *dx = (x - *(v+*low)) / (*(v+*high) - *(v+*low));
+  /* Search if necessary  */
+  else
+  {
+    while ((*high - *low) > 1)
+    {
+      mid = (*low + *high) / 2;
+      if (*(v + mid) > x)
+        *high = mid;
+      else
+        *low = mid;
     }
-}   /* End binsearch    */
+    *dx = (x - *(v + *low)) / (*(v + *high) - *(v + *low));
+  }
+} /* End binsearch    */
 
 /* T A B 1
 *
@@ -87,15 +92,17 @@ void binsearch(double x, double *v, int n, int *high, int *low, double *dx){
 *   Global variables used:  None.
 *   Functions called:   binsearch.
 */
-double tab1(double x, double *v, double *y, int n){
-    double dx;
-    int high, low;
-    void binsearch(double x, double *v, int n, int *high,
-                    int *low, double *dx);
-    if(n<1) return y[0];
-    binsearch(x, v, n, &high, &low, &dx);
-    return *(y+low) + dx * (*(y+high) - *(y+low));
-}   /* End tab1 */
+double tab1(double x, double *v, double *y, int n)
+{
+  double dx;
+  int high, low;
+  void binsearch(double x, double *v, int n, int *high,
+                 int *low, double *dx);
+  if (n < 1)
+    return y[0];
+  binsearch(x, v, n, &high, &low, &dx);
+  return *(y + low) + dx * (*(y + high) - *(y + low));
+} /* End tab1 */
 
 /* tab1clip:    Univariant arbitrarily spaced table look-up with clipping.
 *
@@ -108,15 +115,17 @@ double tab1(double x, double *v, double *y, int n){
 *   Outputs:
 *       tab1        Result of table lookup
 */
-double tab1clip(double x, double *v, double *y, int n){
-    double dx;
-    int high, low;
-    void binsearch(double x, double *v, int n, int *high,
-                    int *low, double *dx);
-    if(n<1) return y[0];
-    binsearch(x, v, n, &high, &low, &dx);
-    return *(y+low) + fmax(fmin(dx, 1.), 0.) * (*(y+high) - *(y+low));
-}   /* End tab1clip */
+double tab1clip(double x, double *v, double *y, int n)
+{
+  double dx;
+  int high, low;
+  void binsearch(double x, double *v, int n, int *high,
+                 int *low, double *dx);
+  if (n < 1)
+    return y[0];
+  binsearch(x, v, n, &high, &low, &dx);
+  return *(y + low) + fmax(fmin(dx, 1.), 0.) * (*(y + high) - *(y + low));
+} /* End tab1clip */
 
 /* T A B 2
 *
@@ -142,110 +151,111 @@ double tab1clip(double x, double *v, double *y, int n){
 *   Functions called:   binsearch.
 */
 double tab2(double x1, double x2, double *v1, double *v2, double *y, int n1,
-                int n2){
-    double dx1, dx2, r0, r1;
-    int high1, high2, low1, low2, temp1, temp2;
-    void binsearch(double x, double *v, int n, int *high,
-                    int *low, double *dx);
-    if(n1<1 || n2<1) return y[0];
-    binsearch(x1, v1, n1, &high1, &low1, &dx1);
-    binsearch(x2, v2, n2, &high2, &low2, &dx2);
-    temp1   = low1 * n2 + low2;
-    temp2   = low1 * n2 + high2;
-    r0      = *(y+temp1) + dx1 * (*(y+high1*n2+low2)  - *(y+temp1));
-    r1      = *(y+temp2) + dx1 * (*(y+high1*n2+high2) - *(y+temp2));
-    return  r0 + dx2 * (r1 - r0);
-}   /* End tab2 */
+            int n2)
+{
+  double dx1, dx2, r0, r1;
+  int high1, high2, low1, low2, temp1, temp2;
+  void binsearch(double x, double *v, int n, int *high,
+                 int *low, double *dx);
+  if (n1 < 1 || n2 < 1)
+    return y[0];
+  binsearch(x1, v1, n1, &high1, &low1, &dx1);
+  binsearch(x2, v2, n2, &high2, &low2, &dx2);
+  temp1 = low1 * n2 + low2;
+  temp2 = low1 * n2 + high2;
+  r0 = *(y + temp1) + dx1 * (*(y + high1 * n2 + low2) - *(y + temp1));
+  r1 = *(y + temp2) + dx1 * (*(y + high1 * n2 + high2) - *(y + temp2));
+  return r0 + dx2 * (r1 - r0);
+} /* End tab2 */
 
 // class TableInterp
 // constructors
 TableInterp::TableInterp()
-    : n1_(0){}
+    : n1_(0) {}
 TableInterp::TableInterp(const unsigned int n, const double x[])
     : n1_(n)
 {
   x_ = new double[n1_];
-  for ( int i=0; i<n1_; i++ )
+  for (int i = 0; i < n1_; i++)
   {
-    x_[i]   = x[i];
+    x_[i] = x[i];
   }
 }
 
-TableInterp::~TableInterp(){}
+TableInterp::~TableInterp() {}
 // operators
 // functions
 double TableInterp::interp(void)
 {
-  return(-999.);
+  return (-999.);
 }
 
 // 1-D Interpolation Table Lookup
 // constructors
-TableInterp1D::TableInterp1D() : TableInterp(){}
+TableInterp1D::TableInterp1D() : TableInterp() {}
 TableInterp1D::TableInterp1D(const unsigned int n, const double x[], const double v[])
-: TableInterp(n, x)
+    : TableInterp(n, x)
 {
   v_ = new double[n1_];
-  for ( int i=0; i<n1_; i++ )
+  for (int i = 0; i < n1_; i++)
   {
-    v_[i]   = v[i];
+    v_[i] = v[i];
   }
 }
-TableInterp1D::~TableInterp1D(){}
+TableInterp1D::~TableInterp1D() {}
 // operators
 // functions
 double TableInterp1D::interp(const double x)
 {
-  return(tab1(x, x_, v_, n1_));
+  return (tab1(x, x_, v_, n1_));
 }
 
 // 1-D Interpolation Table Lookup
 // constructors
-TableInterp1Dclip::TableInterp1Dclip() : TableInterp(){}
+TableInterp1Dclip::TableInterp1Dclip() : TableInterp() {}
 TableInterp1Dclip::TableInterp1Dclip(const unsigned int n, const double x[], const double v[])
-: TableInterp(n, x)
+    : TableInterp(n, x)
 {
   v_ = new double[n1_];
-  for ( int i=0; i<n1_; i++ )
+  for (int i = 0; i < n1_; i++)
   {
-    v_[i]   = v[i];
+    v_[i] = v[i];
   }
 }
-TableInterp1Dclip::~TableInterp1Dclip(){}
+TableInterp1Dclip::~TableInterp1Dclip() {}
 // operators
 // functions
 double TableInterp1Dclip::interp(const double x)
 {
-  return(tab1(x, x_, v_, n1_));
+  return (tab1(x, x_, v_, n1_));
 }
-
 
 // 2-D Interpolation Table Lookup
 // constructors
-TableInterp2D::TableInterp2D() : TableInterp(){}
+TableInterp2D::TableInterp2D() : TableInterp() {}
 TableInterp2D::TableInterp2D(const unsigned int n, const unsigned int m, const double x[],
-  const double y[], const double v[])
-: TableInterp(n, x)
+                             const double y[], const double v[])
+    : TableInterp(n, x)
 {
   n2_ = m;
   y_ = new double[n2_];
-  for ( int j=0; j<n2_; j++ )
+  for (int j = 0; j < n2_; j++)
   {
-    y_[j]   = y[j];
+    y_[j] = y[j];
   }
-  v_ = new double[n1_*n2_];
-  for ( int i=0; i<n1_; i++ )
-    for ( int j=0; j<n2_; j++ )
-  {
-    v_[i+j*n1_]   = v[i+j*n1_];
-  }
+  v_ = new double[n1_ * n2_];
+  for (int i = 0; i < n1_; i++)
+    for (int j = 0; j < n2_; j++)
+    {
+      v_[i + j * n1_] = v[i + j * n1_];
+    }
 }
-TableInterp2D::~TableInterp2D(){}
+TableInterp2D::~TableInterp2D() {}
 // operators
 // functions
 double TableInterp2D::interp(double x, double y)
 {
-  return(tab2(x, y, x_, y_, v_, n1_, n2_));
+  return (tab2(x, y, x_, y_, v_, n1_, n2_));
 }
 //tab2(double x1, double x2, double *v1, double *v2, double *y, int n1, int n2);
 /*
