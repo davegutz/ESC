@@ -308,11 +308,11 @@ void loop()
   {
     lastPublish = now;
   }
-  unsigned long deltaT = now - lastControl;
-  control = (deltaT >= CONTROL_DELAY - CLOCK_TCK / 2);
+  unsigned long deltaTick = now - lastControl;
+  control = (deltaTick >= CONTROL_DELAY - CLOCK_TCK / 2);
   if (control)
   {
-    updateTime = float(deltaT) / 1000000.0;
+    updateTime = float(deltaTick) / 1000000.0;
     lastControl = now;
   }
   if (freqResp)
@@ -383,7 +383,7 @@ void loop()
   if (control)
   {
     fn[0] = throttle;
-    fn[1] = CLAW->modelFS();
+    fn[1] = CLAW->modelTS();
     fn[2] = CLAW->pcnt();
     fn[3] = CLAW->pcntRef();
     if (analyzing)
@@ -400,7 +400,7 @@ void loop()
         sprintf(buffer, "%s,%s,%s,%s,%s,%s,%s,",
                 String(elapsedTime, 6).c_str(), String(CLAW->pcntRef()).c_str(),
                 String(exciter).c_str(), String(throttle).c_str(),
-                String(CLAW->modelFS()).c_str(), String(CLAW->pcnt()).c_str(),
+                String(CLAW->modelTS()).c_str(), String(CLAW->pcnt()).c_str(),
                 String(updateTime, 6).c_str());
         Serial.print(buffer);
         if (!analyzer->complete())
@@ -432,7 +432,7 @@ void loop()
         Serial.print(buffer);
         sprintf_P(buffer, PSTR("%s,"), String(CLAW->pcntRef()).c_str());
         Serial.print(buffer);
-        sprintf_P(buffer, PSTR("%s,  "), String(CLAW->modelFS()).c_str());
+        sprintf_P(buffer, PSTR("%s,  "), String(CLAW->modelTS()).c_str());
         Serial.print(buffer);
         sprintf_P(buffer, PSTR("%s,"), String(CLAW->eM()).c_str());
         Serial.print(buffer);
