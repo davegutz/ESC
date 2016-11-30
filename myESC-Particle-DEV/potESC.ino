@@ -212,7 +212,7 @@ void setup()
 
   //                        wmin    wmax  dw    minCy numCySc  iniCy  wSlow
   //  analyzer = new FRAnalyzer(-0.8,   2.1,  0.1,  2,    1.0,     6,     1 / tauG,
-  analyzer = new FRAnalyzer(-0.8,   1.4,  0.2,  2,  1.0, 6, 1 / tauG,
+  analyzer = new FRAnalyzer(-0.8,   1.4,  0.1,  2,  1.0, 6, 1 / tauG,
                             double(CONTROL_DELAY / 1e6), ix, iy, nsigFn, ntfFn, "t,ref,exc,thr,mod,nf,T"); // 15 ms any
                                                                                                            // 2.2 is Nyquist for T=.020
                                                                                                            // 1.4 is 25 r/s

@@ -83,9 +83,9 @@ private:
                   const boolean freqResp, const double exciter, const double freqRespScalar,
                   const double freqRespAdder, const double potThrottle);
   void model(const int RESET, const double updateTime, const double DENS_SI);
-  LeadLagTustin *modelFilterG_; // Tustin lag model gas gen
-  LeadLagTustin *modelFilterT_; // Tustin lag model turbine
-  LeadLagTustin *modelFilterV_; // Tustin lag model F2V sensor
+  LeadLagExp *modelFilterG_; // Tustin lag model gas gen
+  LeadLagExp *modelFilterT_; // Tustin lag model turbine
+  LeadLagExp *modelFilterV_; // Tustin lag model F2V sensor
   TableInterp1Dclip *LG_T_;  // Gain schedule lead time constant, s
   TableInterp1Dclip *TLD_T_; // Gain schedule loop gain, r/s
   double e_;                 // Closed loop error, %Nt

@@ -27,9 +27,9 @@ ControlLaw::ControlLaw()
 {
   LG_T_ = new TableInterp1Dclip(sizeof(xALL) / sizeof(double), xALL, yLG);
   TLD_T_ = new TableInterp1Dclip(sizeof(xALL) / sizeof(double), xALL, yTLD);
-  modelFilterG_ = new LeadLagTustin(0, tldG, tauG, -1e6, 1e6);
-  modelFilterT_ = new LeadLagTustin(0, tldT, 1.00, -1e6, 1e6);
-  modelFilterV_ = new LeadLagTustin(0, tldV, tauF2V, -1e6, 1e6);
+  modelFilterG_ = new LeadLagExp(0, tldG, tauG, -1e6, 1e6);
+  modelFilterT_ = new LeadLagExp(0, tldT, 1.00, -1e6, 1e6);
+  modelFilterV_ = new LeadLagExp(0, tldV, tauF2V, -1e6, 1e6);
 }
 ControlLaw::ControlLaw(const double T)
     : intState_(0), intStateM_(0), modelG_(0), modelT_(0), modelTS_(0), modPcng_(0),
@@ -37,9 +37,9 @@ ControlLaw::ControlLaw(const double T)
 {
   LG_T_ = new TableInterp1Dclip(sizeof(xALL) / sizeof(double), xALL, yLG);
   TLD_T_ = new TableInterp1Dclip(sizeof(xALL) / sizeof(double), xALL, yTLD);
-  modelFilterG_ = new LeadLagTustin(T, tldG, tauG, -1e6, 1e6);
-  modelFilterT_ = new LeadLagTustin(T, tldT, 1.00, -1e6, 1e6);
-  modelFilterV_ = new LeadLagTustin(T, tldV, tauF2V, -1e6, 1e6);
+  modelFilterG_ = new LeadLagExp(T, tldG, tauG, -1e6, 1e6);
+  modelFilterT_ = new LeadLagExp(T, tldT, 1.00, -1e6, 1e6);
+  modelFilterV_ = new LeadLagExp(T, tldV, tauF2V, -1e6, 1e6);
 }
 
 // Control Law
