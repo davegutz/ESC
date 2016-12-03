@@ -124,6 +124,7 @@ Connections for Arduino:
 // Disable flags if needed.  Usually commented
 //#define BARE_MICROPROCESSOR                   // Run unconnected testing
 //#define DISTURB_CONTROL                       // Use disturbance rejection gains in CLAW
+#define USE_FIXED_LL                          // Use the fixed lead lag compensator
 
 // Test features
 extern const int verbose = 1; // Debug, as much as you can tolerate (2)
@@ -231,7 +232,7 @@ void setup()
   // Header for time data
   if (verbose > 0)
   {
-    sprintf(buffer, "time,cl,vpot,pcntref,pcntSense,err,state,thr,pcntrefM,pcntSenseM,errM,stateM,thrM,modPcng,T\n");
+    sprintf(buffer, "time,cl,vpot,  pcntref,pcntSense,  err,state,thr,  pcntrefM,pcntSenseM,  errM,stateM,thrM,  modPcng,T\n");
     Serial.print(buffer);
   }
 

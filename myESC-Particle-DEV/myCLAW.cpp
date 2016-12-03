@@ -27,6 +27,10 @@ ControlLaw::ControlLaw()
 {
   LG_T_ = new TableInterp1Dclip(sizeof(xALL) / sizeof(double), xALL, yLG);
   TLD_T_ = new TableInterp1Dclip(sizeof(xALL) / sizeof(double), xALL, yTLD);
+#ifdef USE_FIXED_LL
+  clawFixedL_   = new LeadLagExp(0, tldF, tlgF, -1e6, 1e6);
+  clawFixedLM_  = new LeadLagExp(0, tldF, tlgF, -1e6, 1e6);
+#endif
   modelFilterG_ = new LeadLagExp(0, tldG, tauG, -1e6, 1e6);
   modelFilterT_ = new LeadLagExp(0, tldT, 1.00, -1e6, 1e6);
   modelFilterV_ = new LeadLagExp(0, tldV, tauF2V, -1e6, 1e6);
@@ -35,6 +39,10 @@ ControlLaw::ControlLaw(const double T)
     : intState_(0), intStateM_(0), modelG_(0), modelT_(0), modelTS_(0), modPcng_(0),
       pcnt_(0), pcntRef_(0), throttleM_(0), throttleL_(0), throttleML_(0)
 {
+#ifdef USE_FIXED_LL
+  clawFixedL_   = new LeadLagExp(T, tldF, tlgF, -1e6, 1e6);
+  clawFixedLM_  = new LeadLagExp(T, tldF, tlgF, -1e6, 1e6);
+#endif
   LG_T_ = new TableInterp1Dclip(sizeof(xALL) / sizeof(double), xALL, yLG);
   TLD_T_ = new TableInterp1Dclip(sizeof(xALL) / sizeof(double), xALL, yTLD);
   modelFilterG_ = new LeadLagExp(T, tldG, tauG, -1e6, 1e6);
@@ -75,6 +83,8 @@ double ControlLaw::calculate(const int RESET, const double updateTime, const boo
   // Control Law
   e_ = pcntRef_ - pcnt_;
   eM_ = pcntRef_ - modelTS_;
+  double ec = e_;
+  double ecM = eM_;
   double Ki = LG_T_->interp(pcnt_);       // r/s
   double Kp = TLD_T_->interp(pcnt_) * Ki; // %Ng/%Nf=1
   double KiM = Ki;
@@ -82,23 +92,26 @@ double ControlLaw::calculate(const int RESET, const double updateTime, const boo
   double dNdT = P_LT_NG[1] / fmax(potThrottle, 1) / RPM_P; // Rate normalizer, %Ng/deg
   double riMax = RATE_MAX * dNdT;
 
-  // Hardware
-  p_ = fmax(fmin(Kp * e_, NG_MAX), -NG_MAX);
-  intState_ = fmax(fmin(intState_ + updateTime * fmax(fmin(Ki * e_, 0.5 * riMax), -0.5 * riMax), NG_MAX), -NG_MAX);
+  // PI
+#ifdef USE_FIXED_LL
+  ec = clawFixedL_->calculate(e_, RESET, updateTime);
+#endif
+  p_ = fmax(fmin(Kp * ec, NG_MAX), -NG_MAX);
+  intState_ = fmax(fmin(intState_ + updateTime * fmax(fmin(Ki * ec, 0.5 * riMax), -0.5 * riMax), NG_MAX), -NG_MAX);
   double pcngCL = fmax(fmin(intState_ + p_, NG_MAX), NG_MIN);
   throttleCL_ = exp((pcngCL * RPM_P - P_LT_NG[0]) / P_LT_NG[1]);
 
   // Model
-  pM_ = fmax(fmin(KpM * eM_, NG_MAX), -NG_MAX);
-  intStateM_ = fmax(fmin(intStateM_ + updateTime * fmax(fmin(KiM * eM_, 0.5 * riMax), -0.5 * riMax), NG_MAX), -NG_MAX);
+#ifdef USE_FIXED_LL
+  ecM = clawFixedLM_->calculate(eM_, RESET, updateTime);
+#endif
+  pM_ = fmax(fmin(KpM * ecM, NG_MAX), -NG_MAX);
+  intStateM_ = fmax(fmin(intStateM_ + updateTime * fmax(fmin(KiM * ecM, 0.5 * riMax), -0.5 * riMax), NG_MAX), -NG_MAX);
   double pcngCLM = fmax(fmin(intStateM_ + pM_, NG_MAX), NG_MIN);
   throttleCLM_ = exp((pcngCLM * RPM_P - P_LT_NG[0]) / P_LT_NG[1]);
 
   // Rate Limits
   throttle = rateLims(RESET, updateTime, closingLoop, freqResp, exciter, freqRespScalar, freqRespAdder, potThrottle);
-
-  // Final throttle limits
-  throttle = fmax(fmin(throttle, THTL_MAX), THTL_MIN);
 
   // Model
   model(RESET, updateTime, DENS_SI);
@@ -133,8 +146,8 @@ double ControlLaw::rateLims(const int RESET, const double updateTime, const bool
       throttleL_ = fmax(fmin(throttleU, throttleL_ + stepChangeMax), throttleL_ - stepChangeMax);
       throttleML_ = fmax(fmin(throttleMU, throttleML_ + stepChangeMax), throttleML_ - stepChangeMax);
     }
-    throttle = throttleL_;
-    throttleM_ = throttleML_;
+    throttle   = throttleL_   = fmax(fmin(throttleL_,  THTL_MAX), THTL_MIN);
+    throttleM_ = throttleML_  = fmax(fmin(throttleML_, THTL_MAX), THTL_MIN);
   }
   else // open loop
   {
@@ -144,6 +157,7 @@ double ControlLaw::rateLims(const int RESET, const double updateTime, const bool
     if (RESET)
     {
       throttleL_ = throttleML_ = fmax(fmin(throttleU, throttleL_ + stepChangeMax), throttleL_ - stepChangeMax);
+      throttleL_ = throttleML_ = fmax(fmin(throttleL_,  THTL_MAX), THTL_MIN);
     }
     else
     {
@@ -153,6 +167,7 @@ double ControlLaw::rateLims(const int RESET, const double updateTime, const bool
       throttle = throttleM_ = throttleU;
     else
       throttle = throttleM_ = throttleL_;
+    throttle  = fmax(fmin(throttle, THTL_MAX), THTL_MIN);
   } // open loop
 
   return (throttle);

@@ -17,10 +17,19 @@ static const    double    yTLD[6]     = {0.488, 0.488, 0.310,  0.200,  0.141, 0.
 */
 
 #ifndef DISTURB_CONTROL
+#ifndef USE_FIXED_LL
 // Control Ref Step 11/19/2016
-static const double xALL[6] = {0., 16., 25., 47.5, 62., 80.};             // Gain breakpoints, %Nt
-static const double yLG[6]  = {2.4, 2.4, 2.7, 3.2, 3.75, 4.4};             // Loop gain, r/s
-static const double yTLD[6] = {0.475, 0.475, 0.325, 0.225, 0.200, 0.200}; // Lead, s
+static const double xALL[6] = {0.,    16.,    25.,    47.5,   62.,    80.};   // Gain breakpoints, %Nt
+static const double yLG[6]  = {2.4,   2.4,    2.7,    3.2,    3.75,   4.4};   // Loop gain, r/s
+static const double yTLD[6] = {0.475, 0.475,  0.325,  0.225,  0.200,  0.200}; // Lead, s
+#else
+// Control Ref Step Fixed Lead 12/01/2016
+static const double tldF    = 0.15;                                           // Lead, s
+static const double tlgF    = 0.03;                                           // Lag, s
+static const double xALL[6] = {0.,    16.,    25.,    47.5,   62.,    80.};   // Gain breakpoints, %Nt
+static const double yLG[6]  = {3.6,   3.6,    3.75,   4.05,   5.,     5.};    // Loop gain, r/s
+static const double yTLD[6] = {0.420, 0.420,  0.240,  0.125,  0.090,  0.090}; // Lead, s
+#endif
 #else
 // Control Ref Step 11/15/2016
 static const double xALL[6] = {0., 16., 25., 47.5, 62., 80.}; // Gain breakpoints, %Nt
@@ -83,9 +92,9 @@ private:
                   const boolean freqResp, const double exciter, const double freqRespScalar,
                   const double freqRespAdder, const double potThrottle);
   void model(const int RESET, const double updateTime, const double DENS_SI);
-  LeadLagExp *modelFilterG_; // Tustin lag model gas gen
-  LeadLagExp *modelFilterT_; // Tustin lag model turbine
-  LeadLagExp *modelFilterV_; // Tustin lag model F2V sensor
+  LeadLagExp *modelFilterG_; // Exponential lag model gas gen
+  LeadLagExp *modelFilterT_; // Exponential lag model turbine
+  LeadLagExp *modelFilterV_; // Exponential lag model F2V sensor
   TableInterp1Dclip *LG_T_;  // Gain schedule lead time constant, s
   TableInterp1Dclip *TLD_T_; // Gain schedule loop gain, r/s
   double e_;                 // Closed loop error, %Nt
@@ -105,6 +114,10 @@ private:
   double throttleML_;        // Limited modeled servo value, 0-179 degrees
   double throttleCL_;        // Closed loop throttle output, deg
   double throttleCLM_;       // Closed loop model throttle output, deg
+#ifdef USE_FIXED_LL
+  LeadLagExp *clawFixedL_;   // Exponential control fixed lead lag
+  LeadLagExp *clawFixedLM_;  // Exponential model control fixed lead lag
+#endif
 };
 
 #endif
