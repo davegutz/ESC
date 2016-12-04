@@ -15,10 +15,10 @@ SYSTEM_THREAD(ENABLED); // Make sure code always run regardless of network statu
 #include "math.h"
 
 // Test features
-extern int verbose = 1; // Debug, as much as you can tolerate (1)
-extern bool bareOrTest = false;       // Fake inputs and sensors for test purposes (false)
-bool beSquare = false;         // Do step instead of freqResp (false)
-double stepVal = 6;           // Step input, %nf.  Try to make same as freqRespAdder (6)
+extern int verbose=1; // [1] Debug, as much as you can tolerate
+extern bool bareOrTest = false; // [false] Fake inputs and sensors for test purposes
+bool beSquare = false; // [false] Do step instead of freqResp
+double stepVal = 6;    // [6] Step input, %nf.  Try to make same as freqRespAdder
 
 /*
 Controlling a servo position using a potentiometer (variable resistor)
