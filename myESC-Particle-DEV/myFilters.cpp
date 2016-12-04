@@ -14,7 +14,7 @@
 #include "application.h" // Should not be needed if file .ino or Arduino
 #endif
 
-extern const int verbose;
+extern int verbose;
 
 // class DiscreteFilter
 // constructors

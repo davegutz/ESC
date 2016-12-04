@@ -69,54 +69,46 @@ class ControlLaw
 {
 public:
   ControlLaw();
-  ControlLaw(const double T);
+  ControlLaw(const double T, const double DENS_SI);
   ~ControlLaw(){};
   // operators
   // functions
   double calculate(const int RESET, const double updateTime, const boolean closingLoop,
                    const boolean analyzing, const boolean freqResp, const double exciter, const double freqRespScalar,
-                   const double freqRespAdder, const double potThrottle, const double vf2v, const double DENS_SI);
+                   const double freqRespAdder, const double potThrottle, const double vf2v);
   double e(void) { return (e_); };
-  double eM(void) { return (eM_); };
   double intState(void) { return (intState_); };
-  double intStateM(void) { return (intStateM_); };
   double modelTS(void) { return (modelTS_); };
   double modelG(void) { return (modelG_); };
   double p(void) { return (p_); };
-  double pM(void) { return (pM_); };
   double pcnt(void) { return (pcnt_); };
   double pcntRef(void) { return (pcntRef_); };
-  double throttleM(void) { return (throttleM_); };
 private:
-  double rateLims(const int RESET, const double updateTime, const boolean closingLoop,
+  double throttleLims(const int RESET, const double updateTime, const boolean closingLoop,
                   const boolean freqResp, const double exciter, const double freqRespScalar,
                   const double freqRespAdder, const double potThrottle);
-  void model(const int RESET, const double updateTime, const double DENS_SI);
+  void model(const double throttle, const int RESET, const double updateTime);
   LeadLagExp *modelFilterG_; // Exponential lag model gas gen
   LeadLagExp *modelFilterT_; // Exponential lag model turbine
   LeadLagExp *modelFilterV_; // Exponential lag model F2V sensor
   TableInterp1Dclip *LG_T_;  // Gain schedule lead time constant, s
   TableInterp1Dclip *TLD_T_; // Gain schedule loop gain, r/s
+  double DENS_SI_;           // Air density, kg/m^3
+  double dQ_;                // Precalculated coefficient, N-m/rpm/(m/s)
   double e_;                 // Closed loop error, %Nt
-  double eM_;                // Closed loop model error, %Nt
   double intState_;          // PI control integrate state, deg
-  double intStateM_;         // PI control integrate state for model, deg
   double modelG_;            // Model Gas Generator output, %Ng
   double modelT_;            // Model Turbine, %Nt
   double modelTS_;           // Model Turbine Sensed, %Nt
   double modPcng_;           // Modeled pcng ref after esc ttl delay, %Nt
   double p_;                 // Prop path, %Nt
-  double pM_;                // Prop path model, %Nt
   double pcnt_;              // Turbine speed, %
   double pcntRef_;           // Turbine speed closed loop reference, %Nt
-  double throttleM_;         // Modeled servo value, 0-179 degrees
+  double throttle_;          // Final value sent to hardware and model, deg
   double throttleL_;         // Limited servo value, 0-179 degrees
-  double throttleML_;        // Limited modeled servo value, 0-179 degrees
   double throttleCL_;        // Closed loop throttle output, deg
-  double throttleCLM_;       // Closed loop model throttle output, deg
 #ifdef USE_FIXED_LL
   LeadLagExp *clawFixedL_;   // Exponential control fixed lead lag
-  LeadLagExp *clawFixedLM_;  // Exponential model control fixed lead lag
 #endif
 };
 

@@ -13,6 +13,13 @@ SYSTEM_THREAD(ENABLED); // Make sure code always run regardless of network statu
 #include "myAnalyzer.h"
 #include "myTables.h"
 #include "math.h"
+
+// Test features
+extern int verbose = 1; // Debug, as much as you can tolerate (1)
+extern bool bareOrTest = false;       // Fake inputs and sensors for test purposes (false)
+bool beSquare = false;         // Do step instead of freqResp (false)
+double stepVal = 6;           // Step input, %nf.  Try to make same as freqRespAdder (6)
+
 /*
 Controlling a servo position using a potentiometer (variable resistor)
 by Dave Gutz
@@ -122,14 +129,8 @@ Connections for Arduino:
 //
 
 // Disable flags if needed.  Usually commented
-//#define BARE_MICROPROCESSOR                   // Run unconnected testing
 //#define DISTURB_CONTROL                       // Use disturbance rejection gains in CLAW
-#define USE_FIXED_LL                          // Use the fixed lead lag compensator
-
-// Test features
-extern const int verbose = 1; // Debug, as much as you can tolerate (2)
-bool beSquare = true;         // Do step instead of freqResp
-double stepVal = 6;           // Step input, %nf.  Try to make same as freqRespAdder
+//#define USE_FIXED_LL                          // Use the fixed lead lag compensator
 
 // Constants always defined
 // #define CONSTANT
@@ -160,7 +161,7 @@ const double F2V_MAX = 3.45;                      // Maximum F2V value, vdc
 const double POT_BIA = 0.0;                       // Pot adder, vdc
 const double POT_SCL = (3.3 - POT_BIA) / POT_MAX; // Pot scalar, vdc
 #endif
-#define PUBLISH_DELAY 15000UL // Time between cloud updates (), micros
+#define PUBLISH_DELAY 150000UL // Time between cloud updates (), micros
 #define CONTROL_DELAY 15000UL // Control law wait (), micros
 #define FR_DELAY 4000000UL    // Time to start FR, micros
 const double F2V_MIN = 0.0;   // Minimum F2V value, vdc
@@ -232,7 +233,7 @@ void setup()
   // Header for time data
   if (verbose > 0)
   {
-    sprintf(buffer, "time,cl,vpot,  pcntref,pcntSense,  err,state,thr,  pcntrefM,pcntSenseM,  errM,stateM,thrM,  modPcng,T\n");
+    sprintf(buffer, "time,cl,vpot,  pcntref,pcntSense,pcntSenseM,  err,state,thr, modPcng,T\n");
     Serial.print(buffer);
   }
 
@@ -242,7 +243,7 @@ void setup()
 #endif
 
   // Instatiate gain scheduling tables
-  CLAW = new ControlLaw(T);
+  CLAW = new ControlLaw(T, DENS_SI);
 
 #ifdef ARDUINO
   delay(100);
@@ -281,17 +282,20 @@ void loop()
   static int potValue = INSCALE / 3;      // Dial raw value
 
   // Executive
-  if (start == 0UL)
-    start = now;
+  if (start == 0UL) start = now;
   elapsedTime = double(now - start) * 1e-6;
-#ifdef BARE_MICROPROCESSOR
+  if (bareOrTest)
+  {
 #ifdef ARDUINO
-  closingLoop = true;
+    closingLoop = true;
 #endif
-#else
-  closingLoop = (digitalRead(CL_PIN) == HIGH);
-#endif
+  }
+  else
+  {
+    closingLoop = (digitalRead(CL_PIN) == HIGH);
+  }
   buttonState = digitalRead(BUTTON_PIN);
+#ifdef ARDUINO
   if (buttonState == HIGH && (now - lastButton > 2000000UL))
   {
     lastButton = now;
@@ -304,6 +308,7 @@ void loop()
       stepVal = -stepVal;
     }
   }
+#endif
   publish = ((now - lastPublish) >= PUBLISH_DELAY - CLOCK_TCK / 2);
   if (publish)
   {
@@ -329,9 +334,12 @@ void loop()
     if (inputString == doFR)
     {
       analyzer->complete(freqResp); // reset if doing freqResp
-#ifndef BARE_MICROPROCESSOR
       freqResp = !freqResp;
-#endif
+    }
+    String doBareOrTest = "t\n";
+    if (inputString == doBareOrTest)
+    {
+      bareOrTest = !bareOrTest;
     }
     String doCL = "c\n";
     if (inputString == doCL)
@@ -344,6 +352,11 @@ void loop()
       stepping = true;
       stepVal = -stepVal;
     }
+    if (inputString.charAt(0) == 'v')
+    {
+      int vcheck = atoi(inputString.substring(1));
+      if (vcheck>=0 && vcheck<10) verbose = vcheck;
+    }
     inputString = "";
     stringComplete = false;
   }
@@ -352,10 +365,11 @@ void loop()
   // Interrogate inputs
   if (control)
   {
-#ifndef BARE_MICROPROCESSOR
-    potValue = analogRead(POT_PIN);
-    f2vValue = analogRead(F2V_PIN);
-#endif
+    if (!bareOrTest)
+    {
+      potValue = analogRead(POT_PIN);
+      f2vValue = analogRead(F2V_PIN);
+    }
     vf2v = double(f2vValue) / INSCALE * F2V_MAX;
     vpot = fmin(fmax((double(potValue) / INSCALE * POT_MAX - POT_BIA) / POT_SCL, POT_MIN), POT_MAX);
   }
@@ -369,7 +383,7 @@ void loop()
     double potThrottle = vpot_filt * THTL_MAX / POT_MAX;      // deg
     double dNdT = P_LT_NG[1] / fmax(potThrottle, 1) / RPM_P;  // Rate normalizer, %Ng/deg
     potThrottle += stepping * stepVal / dNdT;
-    throttle = CLAW->calculate(RESET, updateTime, closingLoop, analyzing, freqResp, exciter, freqRespScalar, freqRespAdder, potThrottle, vf2v, DENS_SI);
+    throttle = CLAW->calculate(RESET, updateTime, closingLoop, analyzing, freqResp, exciter, freqRespScalar, freqRespAdder, potThrottle, vf2v);
     if (elapsedTime > RESEThold)
       RESET = 0;
   }
@@ -396,7 +410,7 @@ void loop()
   {
     if (freqResp)
     {
-      if (verbose > 1)
+      if (verbose > 1 || (beSquare && verbose>0) )
       {
         sprintf(buffer, "%s,%s,%s,%s,%s,%s,%s,",
                 String(elapsedTime, 6).c_str(), String(CLAW->pcntRef()).c_str(),
@@ -413,6 +427,7 @@ void loop()
     } // freqResp
     else
     {
+    sprintf(buffer, "time,cl,vpot,  pcntref,pcntSense,pcntSenseM,  err,state,thr, modPcng,T\n");
       if (verbose > 0)
       {
         sprintf_P(buffer, PSTR("%s,"), String(elapsedTime, 6).c_str());
@@ -423,23 +438,15 @@ void loop()
         Serial.print(buffer);
         sprintf_P(buffer, PSTR("%s,"), String(CLAW->pcntRef()).c_str());
         Serial.print(buffer);
-        sprintf_P(buffer, PSTR("%s,  "), String(CLAW->pcnt()).c_str());
+        sprintf_P(buffer, PSTR("%s,"), String(CLAW->pcnt()).c_str());
+        Serial.print(buffer);
+        sprintf_P(buffer, PSTR("%s,  "), String(CLAW->modelTS()).c_str());
         Serial.print(buffer);
         sprintf_P(buffer, PSTR("%s,"), String(CLAW->e()).c_str());
         Serial.print(buffer);
         sprintf_P(buffer, PSTR("%s,"), String(CLAW->intState()).c_str());
         Serial.print(buffer);
         sprintf_P(buffer, PSTR("%s,  "), String(throttle).c_str());
-        Serial.print(buffer);
-        sprintf_P(buffer, PSTR("%s,"), String(CLAW->pcntRef()).c_str());
-        Serial.print(buffer);
-        sprintf_P(buffer, PSTR("%s,  "), String(CLAW->modelTS()).c_str());
-        Serial.print(buffer);
-        sprintf_P(buffer, PSTR("%s,"), String(CLAW->eM()).c_str());
-        Serial.print(buffer);
-        sprintf_P(buffer, PSTR("%s,"), String(CLAW->intStateM()).c_str());
-        Serial.print(buffer);
-        sprintf_P(buffer, PSTR("%s,  "), String(CLAW->throttleM()).c_str());
         Serial.print(buffer);
         sprintf_P(buffer, PSTR("%s,"), String(CLAW->modelG()).c_str());
         Serial.print(buffer);
