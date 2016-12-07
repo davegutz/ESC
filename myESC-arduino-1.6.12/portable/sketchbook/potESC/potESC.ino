@@ -17,7 +17,7 @@ SYSTEM_THREAD(ENABLED); // Make sure code always run regardless of network statu
 // Test features
 extern int  verbose    = 1;     // [1] Debug, as much as you can tolerate
 extern bool bareOrTest = false; // [false] Fake inputs and sensors for test purposes
-bool beSquare          = false; // [false] Do step instead of freqResp
+bool beSquare          = true; // [false] Do step instead of freqResp
 double stepVal         = 6;     // [6] Step input, %nf.  Try to make same as freqRespAdder
 
 /*
@@ -233,6 +233,7 @@ void setup()
   // Header for time data
   if (verbose > 0)
   {
+    //******************************************************************************************************************************
     sprintf(buffer, "time,cl,vpot,  pcntref,pcntSense,pcntSenseM,  err,state,thr, modPcng,T\n");
     Serial.print(buffer);
   }
