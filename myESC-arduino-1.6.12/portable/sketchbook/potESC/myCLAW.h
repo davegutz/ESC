@@ -44,25 +44,37 @@ static const double tauF2V = 0.1;   // Model F2V lag time constant, sec
 static const double tldG = 0.0;     // Model Gas Generator lead time constant, sec
 static const double tauG = 0.1;     // Model Gas Generator lag time constant, sec
 static const double tldT = 0.0;     // Model Turbine lead time constant, sec
-static const double J = 3.496e-8;   // Turbine inertia, (rpm/s)/(ft-lbf)
 static const double NG_MAX = 100;   // Maximum trim, %Ng
 static const double NG_MIN = 0;     // Minimum trim, %Ng
-static const double THTL_MAX = 180; // Maximum throttle to prevent shutdown due to small charger, deg
-static const double THTL_MIN = 0;   // Minimum throttle, deg
 static const double RATE_MAX = 240; // Maximum throttle change rate, deg/sec to avoid lockout
 // See calibration<date>.xlsx for these hardware conversion derivations
+static const double RPM_P = 461;                   // (rpm/%)
+static const double THTL_MAX = 180; // Maximum throttle to prevent shutdown due to small charger, deg
+static const double THTL_MIN = 0;   // Minimum throttle, deg
+static const double AREA_SI = 0.002121;            // Flow area, m^2
+static const double NM_2_FTLBF = 0.738;            // ft-lbf/N-m conversion
+static const double J = 3.743e-8;   // Turbine inertia, (rpm/s)/(ft-lbf)
+static const double D_SI = 0.055;                  // Turbine dia, m
+static const double FG_SI = 4.425;                 // Thrust at rated speed, N
+/*
+// CalPhotonTurnigy
 static const double P_V4_NT[3] = {0, 14543, -351}; // Coeff V4(v) to NT(rpm)
 static const double P_LT_NG[2] = {-28327, 14190};  // Coeff throttle(deg) to NG(rpm)
 static const double P_NG_NT[2] = {-8712, 0.9826};  // Coeff NG(rpm) to NT(rpm)
 static const double P_NT_NG[2] = {8893, 1.0165};   // Coeff NT(rpm) to NG(rpm)
-static const double RPM_P = 461;                   // (rpm/%)
-static const double FG_SI = 4.425;                 // Thrust at rated speed, N
-static const double AREA_SI = 0.002121;            // Flow area, m^2
 static const double DCPDL = -1.447;                // dCpdLambda, dimensionless.  Cp is power coefficient and Lambda is speed tip ratio
-static const double D_SI = 0.055;                  // Turbine dia, m
 static const double LAMBDA = 2.64;                 // Turbine tip speed ratio to air velocity, dimensionless
 static const double DELTAV = 7;                    // Air velocity turbine first moves, m/s
-static const double NM_2_FTLBF = 0.738;            // ft-lbf/N-m conversion
+*/
+// Ard1_Turn1_ESC1_G1b_T1a
+static const double P_V4_NT[3] = {0, 14315, -1137};// Coeff V4(v) to NT(rpm)
+static const double P_LT_NG[2] = {-20773, 12971};  // Coeff throttle(deg) to NG(rpm)
+static const double P_NG_NT[2] = {-7294, 0.9911};  // Coeff NG(rpm) to NT(rpm)
+static const double P_NT_NG[2] = {7426, 1.0053};   // Coeff NT(rpm) to NG(rpm)
+static const double DCPDL = -2.551;                // TODO dCpdLambda, dimensionless.  Cp is power coefficient and Lambda is speed tip ratio
+static const double LAMBDA = 2.91;                 // TODO Turbine tip speed ratio to air velocity, dimensionless
+static const double DELTAV = 7.5;                  // TODO Air velocity turbine first moves, m/s
+
 
 // Control Law Class
 class ControlLaw

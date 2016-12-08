@@ -17,7 +17,7 @@ SYSTEM_THREAD(ENABLED); // Make sure code always run regardless of network statu
 // Test features
 extern int  verbose    = 1;     // [1] Debug, as much as you can tolerate
 extern bool bareOrTest = false; // [false] Fake inputs and sensors for test purposes
-bool beSquare          = true; // [false] Do step instead of freqResp
+bool beSquare          = false; // [false] Do step instead of freqResp
 double stepVal         = 6;     // [6] Step input, %nf.  Try to make same as freqRespAdder
 
 /*
@@ -142,7 +142,7 @@ Connections for Arduino:
 #define CL_PIN 4                                               // Closed loop 3-way switch 5V or GND (D4 to GND)
 #define CLOCK_TCK 16UL                                         // Clock tick resolution, micros
 #define INSCALE 1023.0                                         // Input full range from OS
-const double vpotHalfDB = 0.05;                                // Half deadband sliding deadband filter, volts
+const double vpotHalfDB = 0.15;                                // Half deadband sliding deadband filter, volts
 const double POT_MAX = 5.0;                                    // Maximum POT value, vdc
 const double F2V_MAX = 5.0;                                    // Maximum F2V value, vdc
 const double POT_BIA = 0.36 + vpotHalfDB;                      // Pot adder, vdc
