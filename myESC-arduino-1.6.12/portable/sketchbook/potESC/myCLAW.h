@@ -19,20 +19,17 @@ static const    double    yTLD[6]     = {0.488, 0.488, 0.310,  0.200,  0.141, 0.
 #ifndef DISTURB_CONTROL
 #ifndef USE_FIXED_LL
 // Control Ref Step 11/19/2016
-static const double xALL[6] = {0.,    16.,    25.,    47.5,   62.,    80.};   // Gain breakpoints, %Nt
 static const double yLG[6]  = {2.4,   2.4,    2.7,    3.2,    3.75,   4.4};   // Loop gain, r/s
 static const double yTLD[6] = {0.475, 0.475,  0.325,  0.225,  0.200,  0.200}; // Lead, s
 #else
 // Control Ref Step Fixed Lead 12/01/2016
 static const double tldF    = 0.15;                                           // Lead, s
 static const double tlgF    = 0.03;                                           // Lag, s
-static const double xALL[6] = {0.,    16.,    25.,    47.5,   62.,    80.};   // Gain breakpoints, %Nt
 static const double yLG[6]  = {3.6,   3.6,    3.75,   4.05,   5.,     5.};    // Loop gain, r/s
 static const double yTLD[6] = {0.420, 0.420,  0.240,  0.125,  0.090,  0.090}; // Lead, s
 #endif
 #else
 // Control Ref Step 11/15/2016
-static const double xALL[6] = {0., 16., 25., 47.5, 62., 80.}; // Gain breakpoints, %Nt
 static const double yLG[6]  = {3.8, 3.8, 3.4, 3.5, 4.1, 5.5};  // Loop gain, r/s
 static const double yTLD[6] = {0.488, 0.488, 0.340, 0.255, 0.210, 0.210}; // Lead, s
 #endif
@@ -47,7 +44,6 @@ static const double tldT = 0.0;     // Model Turbine lead time constant, sec
 static const double NG_MAX = 100;   // Maximum trim, %Ng
 static const double NG_MIN = 0;     // Minimum trim, %Ng
 static const double RATE_MAX = 240; // Maximum throttle change rate, deg/sec to avoid lockout
-
 // See calibration<date>.xlsx for these hardware conversion derivations
 static const double RPM_P = 461;                   // (rpm/%)
 static const double THTL_MAX = 180; // Maximum throttle to prevent shutdown due to small charger, deg
@@ -57,9 +53,9 @@ static const double NM_2_FTLBF = 0.738;            // ft-lbf/N-m conversion
 static const double J = 3.743e-8;   // Turbine inertia, (rpm/s)/(ft-lbf)
 static const double D_SI = 0.055;                  // Turbine dia, m
 static const double FG_SI = 4.425;                 // Thrust at rated speed, N
-
 /*
 // CalPhotonTurnigy
+static const double xALL[6] = {0.,    16.,    25.,    47.5,   62.,    80.};   // Gain breakpoints, %Nt
 static const double P_V4_NT[3] = {0, 14543, -351}; // Coeff V4(v) to NT(rpm)
 static const double P_LT_NG[2] = {-28327, 14190};  // Coeff throttle(deg) to NG(rpm)
 static const double P_NG_NT[2] = {-8712, 0.9826};  // Coeff NG(rpm) to NT(rpm)
@@ -68,16 +64,26 @@ static const double DCPDL = -1.447;                // dCpdLambda, dimensionless.
 static const double LAMBDA = 2.64;                 // Turbine tip speed ratio to air velocity, dimensionless
 static const double DELTAV = 7;                    // Air velocity turbine first moves, m/s
 */
-
+/*
 // Ard1_Turn1_ESC1_G1b_T1a
+static const double xALL[6] = {0.,    21.7,  37.3,    50.5,   64.1,    80.};   // Gain breakpoints, %Nt
 static const double P_V4_NT[3] = {0, 14315, -1137};// Coeff V4(v) to NT(rpm)
 static const double P_LT_NG[2] = {-20773, 12971};  // Coeff throttle(deg) to NG(rpm)
 static const double P_NG_NT[2] = {-7294, 0.9911};  // Coeff NG(rpm) to NT(rpm)
 static const double P_NT_NG[2] = {7426, 1.0053};   // Coeff NT(rpm) to NG(rpm)
 static const double DCPDL = -0.942;                // TODO dCpdLambda, dimensionless.  Cp is power coefficient and Lambda is speed tip ratio
 static const double LAMBDA = 3.03;                 // TODO Turbine tip speed ratio to air velocity, dimensionless
-static const double DELTAV = 5;                    // TODO Air velocity turbine first moves, m/s
-
+static const double DELTAV = 5.0;                  // TODO Air velocity turbine first moves, m/s
+*/
+// Ard2_Turn2_ESC2_G2b_T2a
+static const double xALL[6] = {0.,    21.7,  37.3,    50.5,   64.1,    80.};   // Gain breakpoints, %Nt
+static const double P_V4_NT[3] = {0, 14315, -1137};// Coeff V4(v) to NT(rpm)
+static const double P_LT_NG[2] = {-20773, 12971};  // Coeff throttle(deg) to NG(rpm)
+static const double P_NG_NT[2] = {-7294, 0.9911};  // Coeff NG(rpm) to NT(rpm)
+static const double P_NT_NG[2] = {7426, 1.0053};   // Coeff NT(rpm) to NG(rpm)
+static const double DCPDL = -0.942;                // TODO dCpdLambda, dimensionless.  Cp is power coefficient and Lambda is speed tip ratio
+static const double LAMBDA = 3.03;                 // TODO Turbine tip speed ratio to air velocity, dimensionless
+static const double DELTAV = 5.0;                  // TODO Air velocity turbine first moves, m/s
 
 // Control Law Class
 class ControlLaw
