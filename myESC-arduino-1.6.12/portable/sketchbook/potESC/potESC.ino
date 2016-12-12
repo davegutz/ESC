@@ -435,7 +435,7 @@ void loop()
         Serial.print(buffer);
         sprintf_P(buffer, PSTR("%s, "), String(closingLoop).c_str());
         Serial.print(buffer);
-        sprintf_P(buffer, PSTR("%s,  "), String(vpot).c_str());
+        sprintf_P(buffer, PSTR("%s,  "), String(vpot,3).c_str());
         Serial.print(buffer);
         sprintf_P(buffer, PSTR("%s,"), String(CLAW->pcntRef()).c_str());
         Serial.print(buffer);
@@ -447,7 +447,7 @@ void loop()
         Serial.print(buffer);
         sprintf_P(buffer, PSTR("%s,"), String(CLAW->intState()).c_str());
         Serial.print(buffer);
-        sprintf_P(buffer, PSTR("%s,  "), String(throttle).c_str());
+        sprintf_P(buffer, PSTR("%s,  "), String(throttle, 0).c_str());
         Serial.print(buffer);
         sprintf_P(buffer, PSTR("%s,"), String(CLAW->modelG()).c_str());
         Serial.print(buffer);
