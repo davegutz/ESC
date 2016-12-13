@@ -15,10 +15,10 @@ SYSTEM_THREAD(ENABLED); // Make sure code always run regardless of network statu
 #include "math.h"
 
 // Test features
-extern int verbose=1; // [1] Debug, as much as you can tolerate
+extern int  verbose    = 1;     // [1] Debug, as much as you can tolerate
 extern bool bareOrTest = false; // [false] Fake inputs and sensors for test purposes
-bool beSquare = false; // [false] Do step instead of freqResp
-double stepVal = 6;    // [6] Step input, %nf.  Try to make same as freqRespAdder
+bool beSquare          = false; // [false] Do step instead of freqResp
+double stepVal         = 6;     // [6] Step input, %nf.  Try to make same as freqRespAdder
 
 /*
 Controlling a servo position using a potentiometer (variable resistor)
@@ -142,7 +142,7 @@ Connections for Arduino:
 #define CL_PIN 4                                               // Closed loop 3-way switch 5V or GND (D4 to GND)
 #define CLOCK_TCK 16UL                                         // Clock tick resolution, micros
 #define INSCALE 1023.0                                         // Input full range from OS
-const double vpotHalfDB = 0.05;                                // Half deadband sliding deadband filter, volts
+const double vpotHalfDB = 0.15;                                // Half deadband sliding deadband filter, volts
 const double POT_MAX = 5.0;                                    // Maximum POT value, vdc
 const double F2V_MAX = 5.0;                                    // Maximum F2V value, vdc
 const double POT_BIA = 0.36 + vpotHalfDB;                      // Pot adder, vdc
@@ -233,6 +233,7 @@ void setup()
   // Header for time data
   if (verbose > 0)
   {
+    //******************************************************************************************************************************
     sprintf(buffer, "time,cl,vpot,  pcntref,pcntSense,pcntSenseM,  err,state,thr, modPcng,T\n");
     Serial.print(buffer);
   }
@@ -434,7 +435,7 @@ void loop()
         Serial.print(buffer);
         sprintf_P(buffer, PSTR("%s, "), String(closingLoop).c_str());
         Serial.print(buffer);
-        sprintf_P(buffer, PSTR("%s,  "), String(vpot).c_str());
+        sprintf_P(buffer, PSTR("%s,  "), String(vpot,3).c_str());
         Serial.print(buffer);
         sprintf_P(buffer, PSTR("%s,"), String(CLAW->pcntRef()).c_str());
         Serial.print(buffer);
@@ -446,7 +447,7 @@ void loop()
         Serial.print(buffer);
         sprintf_P(buffer, PSTR("%s,"), String(CLAW->intState()).c_str());
         Serial.print(buffer);
-        sprintf_P(buffer, PSTR("%s,  "), String(throttle).c_str());
+        sprintf_P(buffer, PSTR("%s,  "), String(throttle, 0).c_str());
         Serial.print(buffer);
         sprintf_P(buffer, PSTR("%s,"), String(CLAW->modelG()).c_str());
         Serial.print(buffer);
