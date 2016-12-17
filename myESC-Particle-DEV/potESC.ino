@@ -17,7 +17,7 @@ SYSTEM_THREAD(ENABLED); // Make sure code always run regardless of network statu
 // Test features
 extern int  verbose    = 1;     // [1] Debug, as much as you can tolerate
 extern bool bareOrTest = false; // [false] Fake inputs and sensors for test purposes
-bool beSquare          = false; // [false] Do step instead of freqResp
+bool beSquare          = true;  // [false] Do step instead of freqResp
 double stepVal         = 6;     // [6] Step input, %nf.  Try to make same as freqRespAdder
 
 /*
@@ -161,7 +161,8 @@ const double F2V_MAX = 3.45;                      // Maximum F2V value, vdc
 const double POT_BIA = 0.0;                       // Pot adder, vdc
 const double POT_SCL = (3.3 - POT_BIA) / POT_MAX; // Pot scalar, vdc
 #endif
-#define PUBLISH_DELAY 150000UL // Time between cloud updates (), micros
+//********constants for all*******************
+#define PUBLISH_DELAY 15000UL // Time between cloud updates (), micros
 #define CONTROL_DELAY 15000UL // Control law wait (), micros
 #define FR_DELAY 4000000UL    // Time to start FR, micros
 const double F2V_MIN = 0.0;   // Minimum F2V value, vdc
