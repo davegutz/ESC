@@ -53,7 +53,8 @@ static const double NM_2_FTLBF = 0.738;            // ft-lbf/N-m conversion
 static const double J = 3.743e-8;   // Turbine inertia, (rpm/s)/(ft-lbf)
 static const double D_SI = 0.055;                  // Turbine dia, m
 static const double FG_SI = 4.425;                 // Thrust at rated speed, N
-/*
+#define KIT_0
+#ifdef KIT_0
 // CalPhotonTurnigy
 static const double xALL[6] = {0.,    16.,    25.,    47.5,   62.,    80.};   // Gain breakpoints, %Nt
 static const double P_V4_NT[3] = {0, 14543, -351}; // Coeff V4(v) to NT(rpm)
@@ -63,9 +64,7 @@ static const double P_NT_NG[2] = {8893, 1.0165};   // Coeff NT(rpm) to NG(rpm)
 static const double DCPDL = -1.447;                // dCpdLambda, dimensionless.  Cp is power coefficient and Lambda is speed tip ratio
 static const double LAMBDA = 2.64;                 // Turbine tip speed ratio to air velocity, dimensionless
 static const double DELTAV = 7;                    // Air velocity turbine first moves, m/s
-*/
-#define KIT_1
-
+#else
 #ifdef KIT_1
 // Ard1_Turn1_ESC1_G1b_T1a
 static const double xALL[6] = {0.,    21.7,  37.3,    50.5,   64.1,    80.};   // Gain breakpoints, %Nt
@@ -109,6 +108,7 @@ static const double P_NT_NG[2] = {7464,  0.9878};   // Coeff NT(rpm) to NG(rpm)
 static const double DCPDL = -0.975;                 // TODO dCpdLambda, dimensionless.  Cp is power coefficient and Lambda is speed tip ratio
 static const double LAMBDA = 3.13;                  // TODO Turbine tip speed ratio to air velocity, dimensionless
 static const double DELTAV = 4.0;                   // TODO Air velocity turbine first moves, m/s
+#endif
 #endif
 #endif
 #endif
