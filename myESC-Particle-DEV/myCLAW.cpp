@@ -27,6 +27,10 @@ ControlLaw::ControlLaw()
 {
   LG_T_ = new TableInterp1Dclip(sizeof(xALL) / sizeof(double), xALL, yLG);
   TLD_T_ = new TableInterp1Dclip(sizeof(xALL) / sizeof(double), xALL, yTLD);
+#ifdef USE_THTL_TABLE
+  pcng_lnT_T_ = new TableInterp1Dclip(sizeof(lnT_T) / sizeof(double), pcng_T, lnT_T);
+  lnT_pcng_T_ = new TableInterp1Dclip(sizeof(lnT_T) / sizeof(double), lnT_T, pcng_T);
+#endif
 #ifdef USE_FIXED_LL
   clawFixedL_ = new LeadLagExp(0, tldF, tlgF, -1e6, 1e6);
 #endif
@@ -38,6 +42,10 @@ ControlLaw::ControlLaw(const double T, const double DENS_SI)
     : DENS_SI_(DENS_SI), intState_(0), modelG_(0), modelT_(0), modelTS_(0), modPcng_(0),
       pcnt_(0), pcntRef_(0), throttle_(0), throttleL_(0)
 {
+#ifdef USE_THTL_TABLE
+  pcng_lnT_T_ = new TableInterp1Dclip(sizeof(lnT_T) / sizeof(double), pcng_T, lnT_T);
+  lnT_pcng_T_ = new TableInterp1Dclip(sizeof(lnT_T) / sizeof(double), lnT_T, pcng_T);
+#endif
 #ifdef USE_FIXED_LL
   clawFixedL_ = new LeadLagExp(T, tldF, tlgF, -1e6, 1e6);
 #endif
@@ -90,7 +98,11 @@ double ControlLaw::calculate(const int RESET, const double updateTime, const boo
   p_ = fmax(fmin(Kp * ec, NG_MAX), -NG_MAX);
   intState_ = fmax(fmin(intState_ + updateTime * fmax(fmin(Ki * ec, 0.5 * riMax), -0.5 * riMax), NG_MAX), -NG_MAX);
   double pcngCL = fmax(fmin(intState_ + p_, NG_MAX), NG_MIN);
+#ifdef USE_THTL_TABLE
+  throttleCL_ = exp(pcng_lnT_T_->interp(pcngCL));
+#else
   throttleCL_ = exp((pcngCL * RPM_P - P_LT_NG[0]) / P_LT_NG[1]);
+#endif
 
   // Limits
   throttle_ = throttleLims(RESET, updateTime, closingLoop, freqResp, exciter, freqRespScalar, freqRespAdder, potThrottle);
@@ -135,7 +147,11 @@ void ControlLaw::model(const double throttle, const int RESET, const double upda
   if (RESET)
     modPcng_ = (P_NT_NG[0] + pcntRef_ * RPM_P * P_NT_NG[1]) / RPM_P;
   else
-    modPcng_ = fmax((P_LT_NG[0] + P_LT_NG[1] * log(double(int(throttle)))) / RPM_P, 0.0);
+#ifdef USE_THTL_TABLE
+    modPcng_ = lnT_pcng_T_->interp(log(round(throttle)));
+#else
+    modPcng_ = fmax((P_LT_NG[0] + P_LT_NG[1] * log(round(throttle))) / RPM_P, 0.0);
+#endif
   double Fg_SI = FG_SI * pow(modelG_ / 100, 3);    // N
   double Vw_SI = sqrt(Fg_SI / AREA_SI / DENS_SI_); // m/s
   dQt_dNt = fmin(dQ_ * (Vw_SI - DELTAV), -1e-16);

@@ -64,6 +64,9 @@ static const double P_NT_NG[2] = {8893, 1.0165};   // Coeff NT(rpm) to NG(rpm)
 static const double DCPDL = -1.447;                // dCpdLambda, dimensionless.  Cp is power coefficient and Lambda is speed tip ratio
 static const double LAMBDA = 2.64;                 // Turbine tip speed ratio to air velocity, dimensionless
 static const double DELTAV = 7;                    // Air velocity turbine first moves, m/s
+#define USE_THTL_TABLE
+static const double lnT_T[18]   = {1.902, 2.197,  2.303,  2.398,  2.485,  3.219,  3.555,  3.989,  4.159,  4.489,  4.615,  4.736,  4.828,  4.868,  4.942,  4.977,  5.043,  5.193};
+static const double pcng_T[18]  = {0.000, 16.524, 17.886, 19.729, 21.001, 39.941, 48.585, 60.562, 64.460, 73.564, 75.703, 78.914, 84.551, 86.231, 87.979, 92.346, 95.461, 100.647};
 #else
 #ifdef KIT_1
 // Ard1_Turn1_ESC1_G1b_T1a
@@ -143,6 +146,10 @@ private:
   LeadLagExp *modelFilterV_; // Exponential lag model F2V sensor
   TableInterp1Dclip *LG_T_;  // Gain schedule lead time constant, s
   TableInterp1Dclip *TLD_T_; // Gain schedule loop gain, r/s
+#ifdef USE_THTL_TABLE
+  TableInterp1Dclip *pcng_lnT_T_; // Ng to ln(throttle) correlation
+  TableInterp1Dclip *lnT_pcng_T_; // ln(throttle) to Ng correlation
+#endif
   double DENS_SI_;           // Air density, kg/m^3
   double dQ_;                // Precalculated coefficient, N-m/rpm/(m/s)
   double e_;                 // Closed loop error, %Nt
