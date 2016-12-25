@@ -53,7 +53,7 @@ static const double D_SI = 0.055;                  // Turbine dia, m
 static const double FG_SI = 4.425;                 // Thrust at rated speed, N
 static const double THTL_MAX = 180; // Maximum throttle, deg
 static const double NG_MAX = 100;   // Maximum trim, %Ng
-#define KIT_0
+#define KIT_1
 #ifdef KIT_0
 // CalPhotonTurnigy 12/24/2016
 static const double xALL[6] = {0.,    16.,    25.,    47.5,   62.,    80.};   // Gain breakpoints, %Nt
@@ -68,10 +68,10 @@ static const double DELTAV = 5.0;                  // Air velocity turbine first
 #ifdef KIT_1
 // Ard1_Turn1x_ESC1_G1b_T1a
 static const double xALL[6] = {0.,    21.7,  37.3,    50.5,   64.1,    80.};   // Gain breakpoints, %Nt
-static const double P_V4_NT[3] = {0, 12840, 116};  // Coeff V4(v) to NT(rpm)
-static const double P_LT_NG[2] = {-23026, 12267};  // Coeff throttle(deg) to NG(rpm)
-static const double P_NG_NT[2] = {-5730, 0.9738};  // Coeff NG(rpm) to NT(rpm)
-static const double P_NT_NG[2] = {5897, 1.0262};   // Coeff NT(rpm) to NG(rpm)
+static const double P_V4_NT[3] = {0, 12894, 288};  // Coeff V4(v) to NT(rpm)
+static const double P_LT_NG[2] = {-19172, 11411};  // Coeff throttle(deg) to NG(rpm)
+static const double P_NG_NT[2] = {-5795, 0.9776};  // Coeff NG(rpm) to NT(rpm)
+static const double P_NT_NG[2] = {5943,  1.0222};  // Coeff NT(rpm) to NG(rpm)
 static const double DCPDL = -0.875;                // TODO dCpdLambda, dimensionless.  Cp is power coefficient and Lambda is speed tip ratio
 static const double LAMBDA = 3.16;                 // TODO Turbine tip speed ratio to air velocity, dimensionless
 static const double DELTAV = 3.0;                  // TODO Air velocity turbine first moves, m/s

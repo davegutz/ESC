@@ -17,8 +17,8 @@ SYSTEM_THREAD(ENABLED); // Make sure code always run regardless of network statu
 // Test features
 typedef enum {FREQ, STEP, VECT} testType;
 testType testOnButton = VECT;
-extern int  verbose    = 1;     // [1] Debug, as much as you can tolerate
-extern bool bareOrTest = false; // [false] Fake inputs and sensors for test purposes
+extern int  verbose    = 1;     // [1] Debug, as much as you can tolerate.   For Photon set using "v#"
+extern bool bareOrTest = false; // [false] Fake inputs and sensors for test purposes.  For Photon set using "t"
 double stepVal         = 6;     // [6] Step input, %nf.  Try to make same as freqRespAdder
 
 /*
@@ -191,7 +191,6 @@ double throttle = -5; // Servo value, 0-179 degrees
 char buffer[256];
 LagTustin *throttleFilter; // Tustin lag noise filter
 FRAnalyzer *analyzer;      // Frequency response analyzer
-Vector *vector;            // Input vector driver
 Servo myservo;             // create servo object to control dc motor
 ControlLaw *CLAW;          // Control Law
 
@@ -199,6 +198,19 @@ ControlLaw *CLAW;          // Control Law
 String inputString = "";        // a string to hold incoming data
 boolean stringComplete = false; // whether the string is complete
 #endif
+
+// Test vector setup (functions at bottom of this file)
+bool Vcomplete(void);
+double Vcalculate(double);
+void Vcomplete(bool);
+const double Vtv_[] =  {0, 8,  10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 44}; // Time, s
+const double Vvv_[] =  {6, 18, 30, 42, 54, 66, 78, 90, 96, 90, 78, 66, 54, 42, 30, 18, 6,  6};  // Excitation
+const unsigned int Vnv_ = sizeof(Vtv_)/sizeof(double);  // Length of vector
+double Voutput_ = 0;        // Excitation value
+double Vtime_ = 0;          // Time into vector, s
+double VtnowStart_ = 0;     // now time of vector start reference, s
+bool Vcomplete_ = false;    // Status of vector, T=underway
+unsigned int Viv_ = 0;      // Index of present time in vector
 
 void setup()
 {
@@ -215,13 +227,6 @@ void setup()
   // Lag filter
   double T = float(CONTROL_DELAY) / 1000000.0;
   throttleFilter = new LagTustin(T, tau, -0.1, 0.1);
-
-  const double tv[] =  {0, 8,  10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 44};
-  const double vv[] =  {6, 18, 30, 42, 54, 66, 78, 90, 96, 90, 78, 66, 54, 42, 30, 18, 6,  6};
-#ifndef ARDUINO
-  // Test vector
-  vector  = new Vector( tv, vv, sizeof(tv)/sizeof(double));
-#endif
 
   // Frequency Response
   //                        wmin    wmax  dw    minCy numCySc  iniCy  wSlow
@@ -329,7 +334,7 @@ void loop()
       case VECT:
       {
 #ifndef ARDUINO
-        vector->complete(vectoring); // reset if doing vector
+        Vcomplete(vectoring); // reset if doing vector
         vectoring = !vectoring;
 #else
         vectoring = false;
@@ -355,7 +360,7 @@ void loop()
     analyzing = ( ((now - lastFR) >= FR_DELAY && !analyzer->complete()) );
   else if ( vectoring )
 #ifndef ARDUINO
-    analyzing = !vector->complete();
+    analyzing = !Vcomplete();
 #else
     analyzing = false;
 #endif
@@ -375,7 +380,7 @@ void loop()
     String doV = "V\n";
     if (inputString == doV)
     {
-      vector->complete(vectoring); // reset if doing vector
+      Vcomplete(vectoring); // reset if doing vector
       vectoring = !vectoring;
     }
     String doBareOrTest = "t\n";
@@ -447,7 +452,7 @@ void loop()
     {
       if ( freqResp ) exciter = analyzer->calculate(fn, nsigFn); // use previous exciter for everything
 #ifndef ARDUINO
-      else if ( vectoring ) exciter = vector->calculate(elapsedTime);
+      else if ( vectoring ) exciter = Vcalculate(elapsedTime);
 #endif
     }
   }
@@ -504,7 +509,7 @@ void loop()
   } // publish
   if (analyzer->complete()) freqResp = false;
 #ifndef ARDUINO
-  if (vector->complete()) vectoring = false;
+  if (Vcomplete()) vectoring = false;
 #else
   vectoring = false;
 #endif
@@ -535,3 +540,40 @@ void serialEvent()
   }
 }
 #endif
+
+
+double Vcalculate(const double tnow)
+{
+  if ( VtnowStart_ == 0 )
+  {
+    VtnowStart_ = tnow;  // First call sets time
+    Vcomplete_ = false;
+    Viv_ = 0;
+  }
+  // Find location in vector
+  Vtime_ = tnow-VtnowStart_;
+  while ( Vtv_[Viv_]<Vtime_ && Viv_<Vnv_ ) Viv_++;
+  // Output
+  if ( Viv_ == Vnv_ ) Vcomplete_ = true;
+  unsigned int iv = Viv_;
+  if ( iv==0 ) iv = 1;
+  Voutput_ = Vvv_[iv-1];
+  /*
+          sprintf_P(buffer, PSTR("time=%s"), String(time_).c_str());        Serial.print(buffer);
+          sprintf_P(buffer, PSTR(",iv=%s"), String(iv_).c_str());        Serial.print(buffer);
+          sprintf_P(buffer, PSTR(",tv[iv]=%s"), String(tv_[iv_]).c_str());        Serial.print(buffer);
+          sprintf_P(buffer, PSTR(",output=%s\n"), String(output_).c_str());        Serial.print(buffer);
+*/
+  return ( Voutput_ );
+};
+
+bool Vcomplete(void) { return (Vcomplete_); };
+
+// Restart vector
+void Vcomplete(const bool set)
+{
+  Viv_ = 0;
+  Vcomplete_ = false;
+  Vtime_ = 0;
+  VtnowStart_ = 0;
+};

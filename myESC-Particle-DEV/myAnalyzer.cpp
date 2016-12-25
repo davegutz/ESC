@@ -317,7 +317,7 @@ void FRAnalyzer::publish()
 // Class Vector
 //Vector::Vector() : complete_(false), iv_(0), nv_(0), output_(0), time_(0){};
 Vector::Vector(const double tv[], const double vv[], const int nv)
-    : complete_(false), iv_(0), nv_(nv), time_(0), tnowStart_(0)
+    : complete_(false), iv_(0), nv_(nv), output_(0), time_(0), tnowStart_(0)
 {
   tv_ = new double[nv_];
   vv_ = new double[nv_];
