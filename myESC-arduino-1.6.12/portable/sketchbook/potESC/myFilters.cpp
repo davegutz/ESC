@@ -34,7 +34,7 @@ double DiscreteFilter::calculate(double input, int RESET)
   return (rate_);
 }
 void DiscreteFilter::rateState(double in) {}
-double DiscreteFilter::rateStateCalc(double in) {}
+double DiscreteFilter::rateStateCalc(double in) { return (0); }
 void DiscreteFilter::assignCoeff(double tau) {}
 double DiscreteFilter::state(void) { return (0); }
 

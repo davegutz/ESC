@@ -176,7 +176,7 @@ TableInterp::TableInterp(const unsigned int n, const double x[])
     : n1_(n)
 {
   x_ = new double[n1_];
-  for (int i = 0; i < n1_; i++)
+  for (unsigned int i = 0; i < n1_; i++)
   {
     x_[i] = x[i];
   }
@@ -197,7 +197,7 @@ TableInterp1D::TableInterp1D(const unsigned int n, const double x[], const doubl
     : TableInterp(n, x)
 {
   v_ = new double[n1_];
-  for (int i = 0; i < n1_; i++)
+  for (unsigned int i = 0; i < n1_; i++)
   {
     v_[i] = v[i];
   }
@@ -217,7 +217,7 @@ TableInterp1Dclip::TableInterp1Dclip(const unsigned int n, const double x[], con
     : TableInterp(n, x)
 {
   v_ = new double[n1_];
-  for (int i = 0; i < n1_; i++)
+  for (unsigned int i = 0; i < n1_; i++)
   {
     v_[i] = v[i];
   }
@@ -239,13 +239,13 @@ TableInterp2D::TableInterp2D(const unsigned int n, const unsigned int m, const d
 {
   n2_ = m;
   y_ = new double[n2_];
-  for (int j = 0; j < n2_; j++)
+  for (unsigned int j = 0; j < n2_; j++)
   {
     y_[j] = y[j];
   }
   v_ = new double[n1_ * n2_];
-  for (int i = 0; i < n1_; i++)
-    for (int j = 0; j < n2_; j++)
+  for (unsigned int i = 0; i < n1_; i++)
+    for (unsigned int j = 0; j < n2_; j++)
     {
       v_[i + j * n1_] = v[i + j * n1_];
     }

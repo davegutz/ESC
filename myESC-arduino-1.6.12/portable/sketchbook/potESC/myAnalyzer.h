@@ -27,14 +27,14 @@ private:
   void initializeRUN_(void);
   void initializeSET_(void);
   double properOmega_(const double updateTime, const int numCycles, const double omegaLog, unsigned long *iTargetOmega);
-  double runIntegrate_(void);
+  void runIntegrate_(void);
   enum Mode
   {
-    WAI,
-    SET,
-    INI,
-    RUN,
-    CPT
+    WAI,          // Wait
+    SET,          // Set
+    INI,          // Initialize
+    RUN,          // Run
+    CPT           // Complete
   } frMode_;                    // Run mode
   double *a1_;                  // Fourier series coefficient
   double aint_;                 // Mantissa buffer for modf call
@@ -72,6 +72,28 @@ private:
   double *transGain_;           // Transfer function gains, dB
   double *transPhas_;           // Transfer function phase, deg
   double wSlow_;                // Frequency of slowest expected mode, r/s
+};
+
+class Vector
+{
+public:
+  Vector();
+  Vector(const double tv[], const double vv[], const int nv);
+  ~Vector(){};
+  // operators
+  // functions
+  double calculate(const double tnow);
+  bool complete(void) { return (complete_); };
+  void complete(const bool set);
+private:
+  bool complete_;               // If done, T/F
+  unsigned int iv_;             // Location in vector
+  unsigned int nv_;             // Length of vector
+  double output_;               // State of output
+  double time_;                 // Run time, sec
+  double tnowStart_;            // First calculate call
+  double *tv_;                  // Time vector, sec
+  double *vv_;                  // Output vector, sec
 };
 
 #endif

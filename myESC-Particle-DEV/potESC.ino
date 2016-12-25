@@ -217,7 +217,7 @@ void setup()
   throttleFilter = new LagTustin(T, tau, -0.1, 0.1);
 
   // Test vector
-  const double tv[] =  {0, 4,  6,  8,  10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 38};
+  const double tv[] =  {0, 8,  10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 44};
   const double vv[] =  {6, 18, 30, 42, 54, 66, 78, 90, 96, 90, 78, 66, 54, 42, 30, 18, 6,  6};
   vector  = new Vector( tv, vv, sizeof(tv)/sizeof(double));
 
