@@ -51,7 +51,8 @@ ControlLaw::ControlLaw(const double T, const double DENS_SI)
 
 // Control Law
 double ControlLaw::calculate(const int RESET, const double updateTime, const boolean closingLoop,
-                             const boolean analyzing, const boolean freqResp, const double exciter, const double freqRespScalar,
+                             const boolean analyzing, const boolean freqResp, const boolean vectoring, 
+                             const double exciter, const double freqRespScalar,
                              const double freqRespAdder, const double potThrottle, const double vf2v)
 {
   // Inputs
@@ -61,10 +62,17 @@ double ControlLaw::calculate(const int RESET, const double updateTime, const boo
     pcnt_ = fmin(fmax(P_V4_NT[0] + vf2v * (P_V4_NT[1] + vf2v * P_V4_NT[2]) / RPM_P, 0.0), 100);
   double throttleRPM = fmax(P_LT_NG[0] + P_LT_NG[1] * log(fmax(potThrottle, 1)), 0); // Ng demand at throttle, rpm
   pcntRef_ = (P_NG_NT[0] + P_NG_NT[1] * throttleRPM) / RPM_P;
-  if (closingLoop && freqResp)
+  if (closingLoop && (freqResp || vectoring))
   {
-    pcntRef_ *= (1 + exciter / freqRespScalar);
-    pcntRef_ += exciter * freqRespAdder;
+    if ( freqResp )
+    {
+      pcntRef_ *= (1 + exciter / freqRespScalar);
+      pcntRef_ += exciter * freqRespAdder;
+    }
+    else if ( vectoring )
+    {
+      pcntRef_ = exciter;
+    }
   }
 
   // Initialization
@@ -93,7 +101,7 @@ double ControlLaw::calculate(const int RESET, const double updateTime, const boo
   throttleCL_ = exp((pcngCL * RPM_P - P_LT_NG[0]) / P_LT_NG[1]);
 
   // Limits
-  throttle_ = throttleLims(RESET, updateTime, closingLoop, freqResp, exciter, freqRespScalar, freqRespAdder, potThrottle);
+  throttle_ = throttleLims(RESET, updateTime, closingLoop, freqResp, vectoring, exciter, freqRespScalar, freqRespAdder, potThrottle);
 
   // Model
   model(throttle_, RESET, updateTime);
@@ -103,7 +111,7 @@ double ControlLaw::calculate(const int RESET, const double updateTime, const boo
 
 // Rate limits
 double ControlLaw::throttleLims(const int RESET, const double updateTime, const boolean closingLoop,
-                                const boolean freqResp, const double exciter, const double freqRespScalar, const double freqRespAdder,
+                                const boolean freqResp, const boolean vectoring, const double exciter, const double freqRespScalar, const double freqRespAdder,
                                 const double potThrottle)
 {
   double throttle;
@@ -111,7 +119,16 @@ double ControlLaw::throttleLims(const int RESET, const double updateTime, const 
 
   // Raw throttle calculation
   if (closingLoop) throttleU = throttleCL_;
-  else throttleU = potThrottle * (1 + exciter / freqRespScalar) + exciter * freqRespAdder; // deg throttle
+  else
+  {
+     if ( freqResp) throttleU = potThrottle * (1 + exciter / freqRespScalar) + exciter * freqRespAdder; // deg throttle
+     else if ( vectoring )
+     {
+        double throttleRPM = fmax(fmin((exciter*RPM_P - P_NG_NT[0])/P_NG_NT[1], NG_MAX*RPM_P), NG_MIN*RPM_P);
+        throttleU = exp((throttleRPM - P_LT_NG[0]) / P_LT_NG[1]);
+     }
+     else throttleU = potThrottle;
+  }
   throttleU = fmax(fmin(throttleU, THTL_MAX), THTL_MIN);
 
   // Apply rate limits as needed
@@ -120,7 +137,7 @@ double ControlLaw::throttleLims(const int RESET, const double updateTime, const 
   throttleL_ = fmax(fmin(throttleU, throttleL_ + stepChange), throttleL_ - stepChange);
 
   // Final selection
-  if (freqResp || !closingLoop) throttle = throttleU;
+  if (freqResp || vectoring || !closingLoop) throttle = throttleU;
   else   throttle = throttleL_;
 
   return (throttle);

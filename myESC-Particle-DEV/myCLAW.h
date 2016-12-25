@@ -51,24 +51,22 @@ static const double NM_2_FTLBF = 0.738;            // ft-lbf/N-m conversion
 static const double J = 3.743e-8;   // Turbine inertia, (rpm/s)/(ft-lbf)
 static const double D_SI = 0.055;                  // Turbine dia, m
 static const double FG_SI = 4.425;                 // Thrust at rated speed, N
+static const double THTL_MAX = 180; // Maximum throttle, deg
+static const double NG_MAX = 100;   // Maximum trim, %Ng
 #define KIT_0
 #ifdef KIT_0
-// CalPhotonTurnigy
-static const double THTL_MAX = 125; // Maximum throttle to prevent shutdown due to small charger, deg
-static const double NG_MAX = 84;   // Maximum trim, %Ng
+// CalPhotonTurnigy 12/24/2016
 static const double xALL[6] = {0.,    16.,    25.,    47.5,   62.,    80.};   // Gain breakpoints, %Nt
-static const double P_V4_NT[3] = {0, 29786, -503}; // Coeff V4(v) to NT(rpm)
+static const double P_V4_NT[3] = {0, 28857, 296};  // Coeff V4(v) to NT(rpm)
 static const double P_LT_NG[2] = {-35968, 15569};  // Coeff throttle(deg) to NG(rpm)
-static const double P_NG_NT[2] = {-5146, 0.9825};  // Coeff NG(rpm) to NT(rpm)
-static const double P_NT_NG[2] = {5294, 1.0157};   // Coeff NT(rpm) to NG(rpm)
-static const double DCPDL = -1.726;                // dCpdLambda, dimensionless.  Cp is power coefficient and Lambda is speed tip ratio
-static const double LAMBDA = 3.10;                 // Turbine tip speed ratio to air velocity, dimensionless
+static const double P_NG_NT[2] = {-4629, 0.9778};  // Coeff NG(rpm) to NT(rpm)
+static const double P_NT_NG[2] = {4826,  1.0194};  // Coeff NT(rpm) to NG(rpm)
+static const double DCPDL = -1.765;                // dCpdLambda, dimensionless.  Cp is power coefficient and Lambda is speed tip ratio
+static const double LAMBDA = 3.17;                 // Turbine tip speed ratio to air velocity, dimensionless
 static const double DELTAV = 5.0;                  // Air velocity turbine first moves, m/s
 #else
 #ifdef KIT_1
 // Ard1_Turn1x_ESC1_G1b_T1a
-static const double THTL_MAX = 140; // Maximum throttle to prevent shutdown due to small charger, deg
-static const double NG_MAX = 83;   // Maximum trim, %Ng
 static const double xALL[6] = {0.,    21.7,  37.3,    50.5,   64.1,    80.};   // Gain breakpoints, %Nt
 static const double P_V4_NT[3] = {0, 12840, 116};  // Coeff V4(v) to NT(rpm)
 static const double P_LT_NG[2] = {-23026, 12267};  // Coeff throttle(deg) to NG(rpm)
@@ -80,8 +78,6 @@ static const double DELTAV = 3.0;                  // TODO Air velocity turbine 
 #else
 #ifdef KIT_2
 // Ard2_Turn2_ESC2_G2b_T2a
-static const double THTL_MAX = 180; // Maximum throttle to prevent shutdown due to small charger, deg
-static const double NG_MAX = 100;   // Maximum trim, %Ng
 static const double xALL[6] = {0.,    22.0,  36.5,    49.1,   67.7,    80.};   // Gain breakpoints, %Nt
 static const double P_V4_NT[3] = {0, 15138, -814};  // Coeff V4(v) to NT(rpm)
 static const double P_LT_NG[2] = {-26667, 12863};   // Coeff throttle(deg) to NG(rpm)
@@ -93,8 +89,6 @@ static const double DELTAV = 5.0;                   // TODO Air velocity turbine
 #else
 #ifdef KIT_3
 // Ard3_Turn3_ESC3_G3b_T3a
-static const double THTL_MAX = 180; // Maximum throttle to prevent shutdown due to small charger, deg
-static const double NG_MAX = 100;   // Maximum trim, %Ng
 static const double xALL[6] = {0.,    21.6,  37.0,    51.0,   70.8,    80.};   // Gain breakpoints, %Nt
 static const double P_V4_NT[3] = {0, 15516, -1432};// Coeff V4(v) to NT(rpm)
 static const double P_LT_NG[2] = {-31105, 14357};  // Coeff throttle(deg) to NG(rpm)
@@ -106,8 +100,6 @@ static const double DELTAV = 5.0;                  // TODO Air velocity turbine 
 #else
 #ifdef KIT_4
 // Ard4_Turn4_ESC4_G4b_T4a
-static const double THTL_MAX = 180; // Maximum throttle to prevent shutdown due to small charger, deg
-static const double NG_MAX = 100;   // Maximum trim, %Ng
 static const double xALL[6] = {0.,    21.6,  37.5,    51.3,   67.9,    80.};   // Gain breakpoints, %Nt
 static const double P_V4_NT[3] = {0, 12801, 29};    // Coeff V4(v) to NT(rpm)
 static const double P_LT_NG[2] = {-31258, 14180};   // Coeff throttle(deg) to NG(rpm)
@@ -132,7 +124,8 @@ public:
   // operators
   // functions
   double calculate(const int RESET, const double updateTime, const boolean closingLoop,
-                   const boolean analyzing, const boolean freqResp, const double exciter, const double freqRespScalar,
+                   const boolean analyzing, const boolean freqResp, const boolean vectoring, 
+                   const double exciter, const double freqRespScalar,
                    const double freqRespAdder, const double potThrottle, const double vf2v);
   double e(void) { return (e_); };
   double intState(void) { return (intState_); };
@@ -143,7 +136,7 @@ public:
   double pcntRef(void) { return (pcntRef_); };
 private:
   double throttleLims(const int RESET, const double updateTime, const boolean closingLoop,
-                  const boolean freqResp, const double exciter, const double freqRespScalar,
+                  const boolean freqResp, const boolean vectoring, const double exciter, const double freqRespScalar,
                   const double freqRespAdder, const double potThrottle);
   void model(const double throttle, const int RESET, const double updateTime);
   LeadLagExp *modelFilterG_; // Exponential lag model gas gen

@@ -15,9 +15,10 @@ SYSTEM_THREAD(ENABLED); // Make sure code always run regardless of network statu
 #include "math.h"
 
 // Test features
+typedef enum {FREQ, STEP, VECT} testType;
+testType testOnButton = VECT;
 extern int  verbose    = 1;     // [1] Debug, as much as you can tolerate
 extern bool bareOrTest = false; // [false] Fake inputs and sensors for test purposes
-bool beSquare          = true;  // [false] Do step instead of freqResp
 double stepVal         = 6;     // [6] Step input, %nf.  Try to make same as freqRespAdder
 
 /*
@@ -171,6 +172,7 @@ const double DENS_SI = 1.225; // Air density, kg/m^3
 
 // Test
 bool freqResp = false;             // Perform frequency response test status
+bool vectoring = false;            // Perform vector test status
 const int nsigFn = 4;              // Length of fn
 const int ntfFn = 2;               // Number of transfer  functions to calculate <= length(ix)
 double fn[4] = {0, 0, 0, 0};       // Functions to analyze
@@ -189,6 +191,7 @@ double throttle = -5; // Servo value, 0-179 degrees
 char buffer[256];
 LagTustin *throttleFilter; // Tustin lag noise filter
 FRAnalyzer *analyzer;      // Frequency response analyzer
+Vector *vector;            // Input vector driver
 Servo myservo;             // create servo object to control dc motor
 ControlLaw *CLAW;          // Control Law
 
@@ -213,9 +216,14 @@ void setup()
   double T = float(CONTROL_DELAY) / 1000000.0;
   throttleFilter = new LagTustin(T, tau, -0.1, 0.1);
 
+  // Test vector
+  const double tv[] =  {0, 4,  6,  8,  10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 38};
+  const double vv[] =  {6, 18, 30, 42, 54, 66, 78, 90, 96, 90, 78, 66, 54, 42, 30, 18, 6,  6};
+  vector  = new Vector( tv, vv, sizeof(tv)/sizeof(double));
+
+  // Frequency Response
   //                        wmin    wmax  dw    minCy numCySc  iniCy  wSlow
-  //  analyzer = new FRAnalyzer(-0.8,   2.1,  0.1,  2,    1.0,     6,     1 / tauG,
-  analyzer = new FRAnalyzer(-0.8,   1.4,  0.1,  2,  1.0, 6, 1 / tauG,
+  analyzer = new FRAnalyzer(-0.8,   1.4,  0.1,  2,    1.0,     6,     1 / tauG,
                             double(CONTROL_DELAY / 1e6), ix, iy, nsigFn, ntfFn, "t,ref,exc,thr,mod,nf,T"); // 15 ms any
                                                                                                            // 2.2 is Nyquist for T=.020
                                                                                                            // 1.4 is 25 r/s
@@ -235,7 +243,7 @@ void setup()
   if (verbose > 0)
   {
     //******************************************************************************************************************************
-    sprintf(buffer, "time,cl,vpot,  pcntref,pcntSense,pcntSenseM,  err,state,thr, modPcng,T\n");
+    sprintf(buffer, "time,mode,vpot,  pcntref,pcntSense,pcntSenseM,  err,state,thr, modPcng,T\n");
     Serial.print(buffer);
   }
 
@@ -272,6 +280,7 @@ void loop()
   static unsigned long lastPublish = 0UL; // Last publish time, micros
   static unsigned long lastButton = 0UL;  // Last button push time, micros
   static unsigned long lastFR = 0UL;      // Last analyzing, micros
+  static int mode = 0;                    // Mode of operation First digit: closingLoop, Second digit: testOnButton, Third digit:  analyzing
   static int RESET = 1;                   // Dynamic reset
   const double RESEThold = 5;             // RESET hold, s
   static double exciter = 0;              // Frequency response excitation, fraction
@@ -301,13 +310,23 @@ void loop()
   if (buttonState == HIGH && (now - lastButton > 2000000UL))
   {
     lastButton = now;
-    analyzer->complete(freqResp); // reset if doing freqResp
-    freqResp = !freqResp;
-    if (beSquare)
+    switch ( testOnButton )
     {
-      freqResp = false;
-      stepping = true;
-      stepVal = -stepVal;
+      case ( FREQ )
+      {
+        analyzer->complete(freqResp); // reset if doing freqResp
+        freqResp = !freqResp;
+      }
+      case ( STEP )
+      {
+       stepping  = true;
+       stepVal  = -stepVal;
+      }
+      case ( VECT )
+      {
+       vector->complete(vectoring); // reset if doing vector
+       vectoring = !vectoring;
+      }
     }
   }
 #endif
@@ -323,11 +342,13 @@ void loop()
     updateTime = float(deltaTick) / 1000000.0;
     lastControl = now;
   }
-  if (freqResp)
-    analyzing = ((now - lastFR) >= FR_DELAY && !analyzer->complete());
+  if ( freqResp)
+    analyzing = ( ((now - lastFR) >= FR_DELAY && !analyzer->complete()) );
+  else if ( vectoring )
+    analyzing = !vector->complete();
   else
     analyzing = false;
-
+  mode = closingLoop*100 + testOnButton*10 + analyzing;
 #ifndef ARDUINO
   // Serial event  (terminate Send String data with 0A using CoolTerm)
   if (stringComplete)
@@ -337,6 +358,12 @@ void loop()
     {
       analyzer->complete(freqResp); // reset if doing freqResp
       freqResp = !freqResp;
+    }
+    String doV = "V\n";
+    if (inputString == doV)
+    {
+      vector->complete(vectoring); // reset if doing vector
+      vectoring = !vectoring;
     }
     String doBareOrTest = "t\n";
     if (inputString == doBareOrTest)
@@ -385,7 +412,7 @@ void loop()
     double potThrottle = vpot_filt * THTL_MAX / POT_MAX;      // deg
     double dNdT = P_LT_NG[1] / fmax(potThrottle, 1) / RPM_P;  // Rate normalizer, %Ng/deg
     potThrottle += stepping * stepVal / dNdT;
-    throttle = CLAW->calculate(RESET, updateTime, closingLoop, analyzing, freqResp, exciter, freqRespScalar, freqRespAdder, potThrottle, vf2v);
+    throttle = CLAW->calculate(RESET, updateTime, closingLoop, analyzing, freqResp, vectoring, exciter, freqRespScalar, freqRespAdder, potThrottle, vf2v);
     if (elapsedTime > RESEThold)
       RESET = 0;
   }
@@ -404,7 +431,10 @@ void loop()
     fn[2] = CLAW->pcnt();
     fn[3] = CLAW->pcntRef();
     if (analyzing)
-      exciter = analyzer->calculate(fn, nsigFn); // use previous exciter for everything
+    {
+      if ( freqResp ) exciter = analyzer->calculate(fn, nsigFn); // use previous exciter for everything
+      else if ( vectoring ) exciter = vector->calculate(elapsedTime);
+    }
   }
 
   // Publish results to serial bus
@@ -412,7 +442,7 @@ void loop()
   {
     if (freqResp)
     {
-      if (verbose > 1 || (beSquare && verbose>0) )
+      if (verbose > 1 || (testOnButton==STEP  && verbose>0) )
       {
         sprintf(buffer, "%s,%s,%s,%s,%s,%s,%s,",
                 String(elapsedTime, 6).c_str(), String(CLAW->pcntRef()).c_str(),
@@ -429,12 +459,12 @@ void loop()
     } // freqResp
     else
     {
-    sprintf(buffer, "time,cl,vpot,  pcntref,pcntSense,pcntSenseM,  err,state,thr, modPcng,T\n");
+    sprintf(buffer, "time,mode,vpot,  pcntref,pcntSense,pcntSenseM,  err,state,thr, modPcng,T\n");
       if (verbose > 0)
       {
         sprintf_P(buffer, PSTR("%s,"), String(elapsedTime, 6).c_str());
         Serial.print(buffer);
-        sprintf_P(buffer, PSTR("%s, "), String(closingLoop).c_str());
+        sprintf_P(buffer, PSTR("%s, "), String(mode).c_str());
         Serial.print(buffer);
         sprintf_P(buffer, PSTR("%s,  "), String(vpot,3).c_str());
         Serial.print(buffer);
@@ -457,8 +487,8 @@ void loop()
       }
     }
   } // publish
-  if (analyzer->complete())
-    freqResp = false;
+  if (analyzer->complete()) freqResp = false;
+  if (vector->complete()) vectoring = false;
 }
 
 #ifndef ARDUINO

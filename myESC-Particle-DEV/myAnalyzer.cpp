@@ -12,7 +12,6 @@
 extern char buffer[256];
 
 //Class FRAnalyzer
-
 FRAnalyzer::FRAnalyzer(const double omegaLogMin, const double omegaLogMax,
                        const double deltaOmegaLog, const int minCycles, const double numCycleScalar, const int numInitCycles,
                        const double wSlow, const double T, const int ix[],
@@ -49,10 +48,10 @@ FRAnalyzer::FRAnalyzer(const double omegaLogMin, const double omegaLogMax,
   a1_ = new double[nsig_];
   b1_ = new double[nsig_];
   ix_ = new unsigned int[ntf_];
-  for (int i = 0; i < ntf_; i++)
+  for (unsigned int i = 0; i < ntf_; i++)
     ix_[i] = ix[i];
   iy_ = new unsigned int[ntf_];
-  for (int i = 0; i < ntf_; i++)
+  for (unsigned int i = 0; i < ntf_; i++)
     iy_[i] = iy[i];
   sig_ = new double[nsig_];
   sigGain_ = new double[nsig_];
@@ -131,9 +130,8 @@ void FRAnalyzer::initializeRUN_(void)
   omega_ = properOmega_(T_, numCycles_, omegaLog_, &iTargetOmega_);
   iOmega_ = 0;
   timeTargetOmega_ = iTargetOmega_ * T_;
-
   // Initialize integrators
-  for (int isig = 0; isig < nsig_; isig++)
+  for (unsigned int isig = 0; isig < nsig_; isig++)
   {
     a1_[isig] = 0.;
     b1_[isig] = 0.;
@@ -150,7 +148,7 @@ double FRAnalyzer::properOmega_(const double updateTime, const int numCycles, co
 // Calculation executive
 double FRAnalyzer::calculate(const double *sig, const int nsig)
 {
-  for (int isig = 0; isig < nsig_; isig++)
+  for (unsigned int isig = 0; isig < nsig_; isig++)
   {
     sig_[isig] = sig[isig];
   }
@@ -247,11 +245,11 @@ double FRAnalyzer::calculateRUN_(void)
 }
 
 // Calculate RUN excitation
-double FRAnalyzer::runIntegrate_(void)
+void FRAnalyzer::runIntegrate_(void)
 {
   double coswtn = cos(omega_ * timeAtOmega_);
   double sinwtn = sin(omega_ * timeAtOmega_);
-  for (int isig = 0; isig < nsig_; isig++)
+  for (unsigned int isig = 0; isig < nsig_; isig++)
   {
     a1_[isig] += sig_[isig] * coswtn;
     b1_[isig] += sig_[isig] * sinwtn;
@@ -260,13 +258,13 @@ double FRAnalyzer::runIntegrate_(void)
   if (iOmega_ >= iTargetOmega_)
   {
     iResults_++;
-    for (int isig = 0; isig < nsig_; isig++)
+    for (unsigned int isig = 0; isig < nsig_; isig++)
     {
       a1_[isig] *= T_ * omega_ / pi / numCycles_;
       b1_[isig] *= T_ * omega_ / pi / numCycles_;
     }
     // Compute signal mag and phase.
-    for (int isig = 0; isig < nsig_; isig++)
+    for (unsigned int isig = 0; isig < nsig_; isig++)
     {
       sigGain_[isig] = 20. * log10(sqrt(a1_[isig] * a1_[isig] + b1_[isig] * b1_[isig]));
       sigPhas_[isig] = 180. / pi * atan2(a1_[isig], b1_[isig]);
@@ -274,7 +272,7 @@ double FRAnalyzer::runIntegrate_(void)
     // Compute transfer function mag and phase and print results.
     sprintf(buffer, "fr,%s,", String(omega_).c_str());
     Serial.print(buffer);
-    for (int itf = 0; itf < ntf_; itf++)
+    for (unsigned int itf = 0; itf < ntf_; itf++)
     {
       transGain_[itf] = sigGain_[iy_[itf]] - sigGain_[ix_[itf]];
       transPhas_[itf] = sigPhas_[iy_[itf]] - sigPhas_[ix_[itf]];
@@ -315,3 +313,51 @@ void FRAnalyzer::publish()
   Serial.print(buffer);
 */
 }
+
+// Class Vector
+//Vector::Vector() : complete_(false), iv_(0), nv_(0), output_(0), time_(0){};
+Vector::Vector(const double tv[], const double vv[], const int nv)
+    : complete_(false), iv_(0), nv_(nv), time_(0), tnowStart_(0)
+{
+  tv_ = new double[nv_];
+  vv_ = new double[nv_];
+  for (unsigned int i = 0; i < nv_; i++)
+  {
+    tv_[i] = tv[i];
+    vv_[i] = vv[i];
+  }
+};
+
+double Vector::calculate(const double tnow)
+{
+  if ( tnowStart_ == 0 )
+  {
+    tnowStart_ = tnow;  // First call sets time
+    complete_ = false;
+    iv_ = 0;
+  }
+  // Find location in vector
+  time_ = tnow-tnowStart_;
+  while ( tv_[iv_]<time_ && iv_<nv_ ) iv_++;
+  // Output
+  if ( iv_ == nv_ ) complete_ = true;
+  unsigned int iv = iv_;
+  if ( iv==0 ) iv = 1;
+  output_ = vv_[iv-1];
+  /*
+          sprintf_P(buffer, PSTR("time=%s"), String(time_).c_str());        Serial.print(buffer);
+          sprintf_P(buffer, PSTR(",iv=%s"), String(iv_).c_str());        Serial.print(buffer);
+          sprintf_P(buffer, PSTR(",tv[iv]=%s"), String(tv_[iv_]).c_str());        Serial.print(buffer);
+          sprintf_P(buffer, PSTR(",output=%s\n"), String(output_).c_str());        Serial.print(buffer);
+*/
+  return ( output_ );
+};
+
+// Restart vector
+void Vector::complete(const bool set)
+{
+  iv_ = 0;
+  complete_ = false;
+  time_ = 0;
+  tnowStart_ = 0;
+};
