@@ -15,8 +15,19 @@ SYSTEM_THREAD(ENABLED); // Make sure code always run regardless of network statu
 #include "math.h"
 
 // Test features
+#define VECTOR
+//#define FREQUENCY
+//#define STEPS
 typedef enum {FREQ, STEP, VECT} testType;
+#ifdef VECTOR
 testType testOnButton = VECT;
+#endif
+#ifdef FREQUENCY
+testType testOnButton = FREQ;
+#endif
+#ifdef STEPS
+testType testOnButton = STEP;
+#endif
 extern int  verbose    = 1;     // [1] Debug, as much as you can tolerate.   For Photon set using "v#"
 extern bool bareOrTest = false; // [false] Fake inputs and sensors for test purposes.  For Photon set using "t"
 double stepVal         = 6;     // [6] Step input, %nf.  Try to make same as freqRespAdder
@@ -199,6 +210,7 @@ String inputString = "";        // a string to hold incoming data
 boolean stringComplete = false; // whether the string is complete
 #endif
 
+#ifdef VECTOR
 // Test vector setup (functions at bottom of this file)
 bool Vcomplete(void);
 double Vcalculate(double);
@@ -211,6 +223,7 @@ double Vtime_ = 0;          // Time into vector, s
 double VtnowStart_ = 0;     // now time of vector start reference, s
 bool Vcomplete_ = false;    // Status of vector, T=underway
 unsigned int Viv_ = 0;      // Index of present time in vector
+#endif
 
 void setup()
 {
@@ -228,12 +241,12 @@ void setup()
   double T = float(CONTROL_DELAY) / 1000000.0;
   throttleFilter = new LagTustin(T, tau, -0.1, 0.1);
 
+#ifdef FREQUENCY
   // Frequency Response
   //                        wmin    wmax  dw    minCy numCySc  iniCy  wSlow
   analyzer = new FRAnalyzer(-0.8,   1.4,  0.1,  2,    1.0,     6,     1 / tauG,
                             double(CONTROL_DELAY / 1e6), ix, iy, nsigFn, ntfFn, "t,ref,exc,thr,mod,nf,T"); // 15 ms any
-                                                                                                           // 2.2 is Nyquist for T=.020
-                                                                                                           // 1.4 is 25 r/s
+#endif
 
   myservo.write(throttle);
 
@@ -321,7 +334,9 @@ void loop()
     {
       case FREQ:
       {
+#ifdef FREQUENCY
         analyzer->complete(freqResp); // reset if doing freqResp
+#endif      
         freqResp = !freqResp;
         break;
       }
@@ -333,12 +348,10 @@ void loop()
       }
       case VECT:
       {
-#ifndef ARDUINO
+#ifdef VECTOR
         Vcomplete(vectoring); // reset if doing vector
-        vectoring = !vectoring;
-#else
-        vectoring = false;
 #endif
+        vectoring = !vectoring;
         break;
       }
     }
@@ -356,13 +369,13 @@ void loop()
     updateTime = float(deltaTick) / 1000000.0;
     lastControl = now;
   }
+#ifdef FREQUENCY
   if ( freqResp)
     analyzing = ( ((now - lastFR) >= FR_DELAY && !analyzer->complete()) );
-  else if ( vectoring )
-#ifndef ARDUINO
+#endif
+#ifdef VECTOR
+  if ( vectoring )
     analyzing = !Vcomplete();
-#else
-    analyzing = false;
 #endif
   else
     analyzing = false;
@@ -374,13 +387,17 @@ void loop()
     String doFR = "f\n";
     if (inputString == doFR)
     {
+#ifdef FREQUENCY
       analyzer->complete(freqResp); // reset if doing freqResp
+#endif
       freqResp = !freqResp;
     }
     String doV = "V\n";
     if (inputString == doV)
     {
+#ifdef VECTOR
       Vcomplete(vectoring); // reset if doing vector
+#endif
       vectoring = !vectoring;
     }
     String doBareOrTest = "t\n";
@@ -450,9 +467,11 @@ void loop()
     fn[3] = CLAW->pcntRef();
     if (analyzing)
     {
+#ifdef FREQUENCY
       if ( freqResp ) exciter = analyzer->calculate(fn, nsigFn); // use previous exciter for everything
-#ifndef ARDUINO
-      else if ( vectoring ) exciter = Vcalculate(elapsedTime);
+#endif
+#ifdef VECTOR
+      if ( vectoring ) exciter = Vcalculate(elapsedTime);
 #endif
     }
   }
@@ -472,7 +491,9 @@ void loop()
         Serial.print(buffer);
         if (!analyzer->complete())
         {
+#ifdef FREQUENCY
           analyzer->publish();
+#endif
         }
         Serial.println("");
       }
@@ -482,36 +503,25 @@ void loop()
     sprintf(buffer, "time,mode,vpot,  pcntref,pcntSense,pcntSenseM,  err,state,thr, modPcng,T\n");
       if (verbose > 0)
       {
-        sprintf_P(buffer, PSTR("%s,"), String(elapsedTime, 6).c_str());
-        Serial.print(buffer);
-        sprintf_P(buffer, PSTR("%s, "), String(mode).c_str());
-        Serial.print(buffer);
-        sprintf_P(buffer, PSTR("%s,  "), String(vpot,3).c_str());
-        Serial.print(buffer);
-        sprintf_P(buffer, PSTR("%s,"), String(CLAW->pcntRef()).c_str());
-        Serial.print(buffer);
-        sprintf_P(buffer, PSTR("%s,"), String(CLAW->pcnt()).c_str());
-        Serial.print(buffer);
-        sprintf_P(buffer, PSTR("%s,  "), String(CLAW->modelTS()).c_str());
-        Serial.print(buffer);
-        sprintf_P(buffer, PSTR("%s,"), String(CLAW->e()).c_str());
-        Serial.print(buffer);
-        sprintf_P(buffer, PSTR("%s,"), String(CLAW->intState()).c_str());
-        Serial.print(buffer);
-        sprintf_P(buffer, PSTR("%s,  "), String(throttle, 0).c_str());
-        Serial.print(buffer);
-        sprintf_P(buffer, PSTR("%s,"), String(CLAW->modelG()).c_str());
-        Serial.print(buffer);
-        sprintf_P(buffer, PSTR("%s,\n"), String(updateTime, 6).c_str());
-        Serial.print(buffer);
+        sprintf(buffer, "%s,", String(elapsedTime, 6).c_str()); Serial.print(buffer);
+        sprintf(buffer, "%s, ", String(mode).c_str()); Serial.print(buffer);
+        sprintf(buffer, "%s,  ", String(vpot, 3).c_str()); Serial.print(buffer);
+        sprintf(buffer, "%s,", String(CLAW->pcntRef()).c_str()); Serial.print(buffer);
+        sprintf(buffer, "%s,", String(CLAW->pcnt()).c_str()); Serial.print(buffer);
+        sprintf(buffer, "%s,  ", String(CLAW->modelTS()).c_str()); Serial.print(buffer);
+        sprintf(buffer, "%s,", String(CLAW->e()).c_str()); Serial.print(buffer);
+        sprintf(buffer, "%s,", String(CLAW->intState()).c_str()); Serial.print(buffer);
+        sprintf(buffer, "%s,  ", String(throttle, 0).c_str()); Serial.print(buffer);
+        sprintf(buffer, "%s,", String(CLAW->modelG()).c_str()); Serial.print(buffer);
+        sprintf(buffer, "%s,\n", String(updateTime, 6).c_str()); Serial.print(buffer);
       }
     }
   } // publish
+#ifdef FREQUENCY
   if (analyzer->complete()) freqResp = false;
-#ifndef ARDUINO
+#endif
+#ifdef VECTOR
   if (Vcomplete()) vectoring = false;
-#else
-  vectoring = false;
 #endif
 }
 
@@ -541,7 +551,7 @@ void serialEvent()
 }
 #endif
 
-
+#ifdef VECTOR
 double Vcalculate(const double tnow)
 {
   if ( VtnowStart_ == 0 )
@@ -577,3 +587,5 @@ void Vcomplete(const bool set)
   Vtime_ = 0;
   VtnowStart_ = 0;
 };
+#endif
+

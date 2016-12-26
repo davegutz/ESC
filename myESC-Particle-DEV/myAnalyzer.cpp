@@ -286,26 +286,16 @@ void FRAnalyzer::runIntegrate_(void)
 // Display results
 void FRAnalyzer::publish()
 {
-  sprintf(buffer, "%s,", String(frMode_).c_str());
-  Serial.print(buffer);
-  sprintf(buffer, "%s,", String(omegaLog_).c_str());
-  Serial.print(buffer);
-  sprintf(buffer, "%s,", String(numCycles_).c_str());
-  Serial.print(buffer);
-  sprintf(buffer, "%s,", String(float(omega_)).c_str());
-  Serial.print(buffer);
-  sprintf(buffer, "%s/", String(iOmega_).c_str());
-  Serial.print(buffer);
-  sprintf(buffer, "%s,", String(iTargetOmega_).c_str());
-  Serial.print(buffer);
-  sprintf(buffer, "%s/", String(timeAtOmega_).c_str());
-  Serial.print(buffer);
-  sprintf(buffer, "%s,", String(timeTargetOmega_).c_str());
-  Serial.print(buffer);
-  sprintf(buffer, "%s/", String(iResults_).c_str());
-  Serial.print(buffer);
-  sprintf(buffer, "%s,", String(iTargetResults_).c_str());
-  Serial.print(buffer);
+  sprintf(buffer, "%s,", String(frMode_).c_str());  Serial.print(buffer);
+  sprintf(buffer, "%s,", String(omegaLog_).c_str());  Serial.print(buffer);
+  sprintf(buffer, "%s,", String(numCycles_).c_str());  Serial.print(buffer);
+  sprintf(buffer, "%s,", String(float(omega_)).c_str());  Serial.print(buffer);
+  sprintf(buffer, "%s/", String(iOmega_).c_str());  Serial.print(buffer);
+  sprintf(buffer, "%s,", String(iTargetOmega_).c_str());  Serial.print(buffer);
+  sprintf(buffer, "%s/", String(timeAtOmega_).c_str());  Serial.print(buffer);
+  sprintf(buffer, "%s,", String(timeTargetOmega_).c_str());  Serial.print(buffer);
+  sprintf(buffer, "%s/", String(iResults_).c_str());  Serial.print(buffer);
+  sprintf(buffer, "%s,", String(iTargetResults_).c_str());  Serial.print(buffer);
   /*  sprintf_P(buffer, PSTR("%s/%s,%s/%s,%s/%s,"),
     String(iOmega_).c_str(),      String(iTargetOmega_).c_str(),
     String(timeAtOmega_).c_str(), String(timeTargetOmega_).c_str(),
