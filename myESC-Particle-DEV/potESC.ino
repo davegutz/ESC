@@ -19,14 +19,14 @@ SYSTEM_THREAD(ENABLED); // Make sure code always run regardless of network statu
 //#define FREQUENCY
 //#define STEPS
 typedef enum {FREQ, STEP, VECT} testType;
-#ifdef VECTOR
+#if defined VECTOR
 testType testOnButton = VECT;
-#endif
-#ifdef FREQUENCY
+#elif defined FREQUENCY
 testType testOnButton = FREQ;
-#endif
-#ifdef STEPS
+#elif defined STEPS
 testType testOnButton = STEP;
+#else
+#error Define one of VECTOR, FREQUENCY, or STEPS
 #endif
 extern int  verbose    = 1;     // [1] Debug, as much as you can tolerate.   For Photon set using "v#"
 extern bool bareOrTest = false; // [false] Fake inputs and sensors for test purposes.  For Photon set using "t"
@@ -369,11 +369,10 @@ void loop()
     updateTime = float(deltaTick) / 1000000.0;
     lastControl = now;
   }
-#ifdef FREQUENCY
+#if defined FREQUENCY
   if ( freqResp)
     analyzing = ( ((now - lastFR) >= FR_DELAY && !analyzer->complete()) );
-#endif
-#ifdef VECTOR
+#elif defined VECTOR
   if ( vectoring )
     analyzing = !Vcomplete();
 #endif
@@ -467,10 +466,9 @@ void loop()
     fn[3] = CLAW->pcntRef();
     if (analyzing)
     {
-#ifdef FREQUENCY
+#if defined FREQUENCY
       if ( freqResp ) exciter = analyzer->calculate(fn, nsigFn); // use previous exciter for everything
-#endif
-#ifdef VECTOR
+#elif defined VECTOR
       if ( vectoring ) exciter = Vcalculate(elapsedTime);
 #endif
     }
@@ -489,12 +487,9 @@ void loop()
                 String(CLAW->modelTS()).c_str(), String(CLAW->pcnt()).c_str(),
                 String(updateTime, 6).c_str());
         Serial.print(buffer);
-        if (!analyzer->complete())
-        {
 #ifdef FREQUENCY
-          analyzer->publish();
+        if (!analyzer->complete()) analyzer->publish();
 #endif
-        }
         Serial.println("");
       }
     } // freqResp
@@ -517,10 +512,9 @@ void loop()
       }
     }
   } // publish
-#ifdef FREQUENCY
+#if defined FREQUENCY
   if (analyzer->complete()) freqResp = false;
-#endif
-#ifdef VECTOR
+#elif defined VECTOR
   if (Vcomplete()) vectoring = false;
 #endif
 }
