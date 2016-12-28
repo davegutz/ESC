@@ -72,9 +72,9 @@ static const double P_V4_NT[3] = {0, 12894, 288};  // Coeff V4(v) to NT(rpm)
 static const double P_LT_NG[2] = {-19172, 11411};  // Coeff throttle(deg) to NG(rpm)
 static const double P_NG_NT[2] = {-5795, 0.9776};  // Coeff NG(rpm) to NT(rpm)
 static const double P_NT_NG[2] = {5943,  1.0222};  // Coeff NT(rpm) to NG(rpm)
-static const double DCPDL = -0.875;                // TODO dCpdLambda, dimensionless.  Cp is power coefficient and Lambda is speed tip ratio
+static const double DCPDL = -0.789;                // TODO dCpdLambda, dimensionless.  Cp is power coefficient and Lambda is speed tip ratio
 static const double LAMBDA = 3.16;                 // TODO Turbine tip speed ratio to air velocity, dimensionless
-static const double DELTAV = 3.0;                  // TODO Air velocity turbine first moves, m/s
+static const double DELTAV = 1.0;                  // TODO Air velocity turbine first moves, m/s
 #else
 #ifdef KIT_2
 // Ard2_Turn2_ESC2_G2b_T2a
