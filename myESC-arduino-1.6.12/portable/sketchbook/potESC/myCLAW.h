@@ -53,7 +53,7 @@ static const double D_SI = 0.055;                  // Turbine dia, m
 static const double FG_SI = 4.425;                 // Thrust at rated speed, N
 static const double THTL_MAX = 180; // Maximum throttle, deg
 static const double NG_MAX = 100;   // Maximum trim, %Ng
-#define KIT_1
+#define KIT_0
 #ifdef KIT_0
 // CalPhotonTurnigy 12/24/2016
 static const double xALL[6] = {0.,    16.,    25.,    47.5,   62.,    80.};   // Gain breakpoints, %Nt
