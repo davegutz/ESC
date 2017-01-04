@@ -15,6 +15,8 @@ SYSTEM_THREAD(ENABLED); // Make sure code always run regardless of network statu
 #include "math.h"
 
 // Test features
+#define CTYPE 0  // 0=P+I, 1=I, 2=PID
+#define KIT 0 // -1=Photon, 0-4 = Arduino
 #define VECTOR
 //#define FREQUENCY
 //#define STEPS
@@ -29,7 +31,8 @@ testType testOnButton = FREQ;
 testType testOnButton = STEP;
 #endif
 extern int  verbose    = 1;     // [1] Debug, as much as you can tolerate.   For Photon set using "v#"
-extern bool bareOrTest = false; // [false] Fake inputs and sensors for test purposes.  For Photon set using "t"
+extern bool bare = false; // [false] Fake inputs and sensors for test purposes.  For Photon set using "b"
+extern bool test = false; // [false] Fake inputs and sensors for test purposes.  For Photon set using "t"
 double stepVal         = 6;     // [6] Step input, %nf.  Try to make same as freqRespAdder
 
 /*
@@ -215,8 +218,8 @@ boolean stringComplete = false; // whether the string is complete
 bool Vcomplete(void);
 double Vcalculate(double);
 void Vcomplete(bool);
-const double Vtv_[] =  {0, 8,  10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 44}; // Time, s
-const double Vvv_[] =  {6, 18, 30, 42, 54, 66, 78, 90, 96, 90, 78, 66, 54, 42, 30, 18, 6,  6};  // Excitation
+const double Vtv_[] =  {0,  8,  12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64, 68, 78}; // Time, s
+const double Vvv_[] =  {10, 18, 30, 42, 54, 66, 78, 90, 96, 90, 78, 66, 54, 42, 30, 18, 10, 10}; // Excitation
 const unsigned int Vnv_ = sizeof(Vtv_)/sizeof(double);  // Length of vector
 double Voutput_ = 0;        // Excitation value
 double Vtime_ = 0;          // Time into vector, s
@@ -315,7 +318,7 @@ void loop()
   // Executive
   if (start == 0UL) start = now;
   elapsedTime = double(now - start) * 1e-6;
-  if (bareOrTest)
+  if (bare)
   {
 #ifdef ARDUINO
     closingLoop = true;
@@ -400,10 +403,15 @@ void loop()
 #endif
       vectoring = !vectoring;
     }
-    String doBareOrTest = "t\n";
-    if (inputString == doBareOrTest)
+    String dobare = "b\n";
+    if (inputString == dobare)
     {
-      bareOrTest = !bareOrTest;
+      bare = !bare;
+    }
+    String dotest = "t\n";
+    if (inputString == dotest)
+    {
+      test = !test;
     }
     String doCL = "c\n";
     if (inputString == doCL)
@@ -429,7 +437,7 @@ void loop()
   // Interrogate inputs
   if (control)
   {
-    if (!bareOrTest)
+    if (!bare)
     {
       potValue = analogRead(POT_PIN);
       f2vValue = analogRead(F2V_PIN);
@@ -445,7 +453,7 @@ void loop()
     if (!freqResp)
       vpot_filt = throttleFilter->calculate(vpotDead, RESET); // Freeze pot for FR
     double potThrottle = vpot_filt * THTL_MAX / POT_MAX;      // deg
-    double dNdT = P_LT_NG[1] / fmax(potThrottle, 1) / RPM_P;  // Rate normalizer, %Ng/deg
+    double dNdT = P_LTALL_NG[1] / fmax(potThrottle, 1) / RPM_P;  // Rate normalizer, %Ng/deg
     potThrottle += stepping * stepVal / dNdT;
     throttle = CLAW->calculate(RESET, updateTime, closingLoop, analyzing, freqResp, vectoring, exciter, freqRespScalar, freqRespAdder, potThrottle, vf2v);
     if (elapsedTime > RESEThold)
