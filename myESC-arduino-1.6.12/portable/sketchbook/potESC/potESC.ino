@@ -17,8 +17,8 @@ SYSTEM_THREAD(ENABLED); // Make sure code always run regardless of network statu
 // Test features
 #define CTYPE 0  // 0=P+I, 1=I, 2=PID
 #define KIT 0 // -1=Photon, 0-4 = Arduino
-#define VECTOR
-//#define FREQUENCY
+//#define VECTOR
+#define FREQUENCY
 //#define STEPS
 typedef enum {FREQ, STEP, VECT} testType;
 #ifdef VECTOR
