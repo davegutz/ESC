@@ -139,7 +139,7 @@ double ControlLaw::throttleLims(const int RESET, const double updateTime, const 
   throttleL_ = fmax(fmin(throttleU, throttleL_ + stepChange), throttleL_ - stepChange);
 
   // Final selection
-  if (freqResp || vectoring || !closingLoop) throttle = throttleU;
+  if (freqResp || !closingLoop) throttle = throttleU;
   else   throttle = throttleL_;
 
   return (throttle);
