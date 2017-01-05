@@ -15,25 +15,23 @@ SYSTEM_THREAD(ENABLED); // Make sure code always run regardless of network statu
 #include "math.h"
 
 // Test features
-#define CTYPE 1  // 0=P+I, 1=I, 2=PID
-#define KIT 1 // -1=Photon, 0-4 = Arduino
-#define VECTOR
-//#define FREQUENCY
-//#define STEPS
-typedef enum {FREQ, STEP, VECT} testType;
-#ifdef VECTOR
-testType testOnButton = VECT;
-#endif
-#ifdef FREQUENCY
-testType testOnButton = FREQ;
-#endif
-#ifdef STEPS
-testType testOnButton = STEP;
-#endif
+#define CTYPE 2   // 0=P+I, 1=I, 2=PID
+#define KIT   1   // -1=Photon, 0-4 = Arduino
+#define TTYPE 2   // 0=STEP, 1=FREQ, 2=VECT
 extern int  verbose    = 1;     // [1] Debug, as much as you can tolerate.   For Photon set using "v#"
 extern bool bare = false; // [false] Fake inputs and sensors for test purposes.  For Photon set using "b"
 extern bool test = false; // [false] Fake inputs and sensors for test purposes.  For Photon set using "t"
 double stepVal         = 6;     // [6] Step input, %nf.  Try to make same as freqRespAdder
+
+#if TTYPE==0  // STEP
+testType testOnButton = STEP;
+#elif TTYPE==1  // FREQ
+testType testOnButton = FREQ;
+#elif TTYPE==2  // VECT
+testType testOnButton = VECT;
+#else
+#error "TTYPE bad"
+#endif
 
 /*
 Controlling a servo position using a potentiometer (variable resistor)
@@ -213,7 +211,7 @@ String inputString = "";        // a string to hold incoming data
 boolean stringComplete = false; // whether the string is complete
 #endif
 
-#ifdef VECTOR
+#if TTYPE==2 // VECT
 // Test vector setup (functions at bottom of this file)
 bool Vcomplete(void);
 double Vcalculate(double);
@@ -244,7 +242,7 @@ void setup()
   double T = float(CONTROL_DELAY) / 1000000.0;
   throttleFilter = new LagTustin(T, tau, -0.1, 0.1);
 
-#ifdef FREQUENCY
+#if TTYPE==1
   // Frequency Response
   //                        wmin    wmax  dw    minCy numCySc  iniCy  wSlow
   analyzer = new FRAnalyzer(-0.8,   1.4,  0.1,  2,    1.0,     6,     1 / tauG,
@@ -337,7 +335,7 @@ void loop()
     {
       case FREQ:
       {
-#ifdef FREQUENCY
+#if TTYPE==1 // FREQ
         analyzer->complete(freqResp); // reset if doing freqResp
 #endif      
         freqResp = !freqResp;
@@ -351,7 +349,7 @@ void loop()
       }
       case VECT:
       {
-#ifdef VECTOR
+#if TTYPE==2 // VECT
         Vcomplete(vectoring); // reset if doing vector
 #endif
         vectoring = !vectoring;
@@ -372,11 +370,10 @@ void loop()
     updateTime = float(deltaTick) / 1000000.0;
     lastControl = now;
   }
-#ifdef FREQUENCY
+#if TTYPE==1 // FREQ
   if ( freqResp)
     analyzing = ( ((now - lastFR) >= FR_DELAY && !analyzer->complete()) );
-#endif
-#ifdef VECTOR
+#elif TTYPE==2 // VECT
   if ( vectoring )
     analyzing = !Vcomplete();
 #endif
@@ -390,7 +387,7 @@ void loop()
     String doFR = "f\n";
     if (inputString == doFR)
     {
-#ifdef FREQUENCY
+#if TTYPE==1  // FREQ
       analyzer->complete(freqResp); // reset if doing freqResp
 #endif
       freqResp = !freqResp;
@@ -398,7 +395,7 @@ void loop()
     String doV = "V\n";
     if (inputString == doV)
     {
-#ifdef VECTOR
+#if TTYPE==2  // VECT
       Vcomplete(vectoring); // reset if doing vector
 #endif
       vectoring = !vectoring;
@@ -475,10 +472,9 @@ void loop()
     fn[3] = CLAW->pcntRef();
     if (analyzing)
     {
-#ifdef FREQUENCY
+#if TTYPE==1  // FREQ
       if ( freqResp ) exciter = analyzer->calculate(fn, nsigFn); // use previous exciter for everything
-#endif
-#ifdef VECTOR
+#elif TTYPE==2 // VECT
       if ( vectoring ) exciter = Vcalculate(elapsedTime);
 #endif
     }
@@ -499,7 +495,7 @@ void loop()
         Serial.print(buffer);
         if (!analyzer->complete())
         {
-#ifdef FREQUENCY
+#if TTYPE==1 // FREQ
           analyzer->publish();
 #endif
         }
@@ -525,10 +521,9 @@ void loop()
       }
     }
   } // publish
-#ifdef FREQUENCY
+#if TTYPE==1 // FREQ
   if (analyzer->complete()) freqResp = false;
-#endif
-#ifdef VECTOR
+#elif TTYPE==2 // VECT
   if (Vcomplete()) vectoring = false;
 #endif
 }
@@ -559,7 +554,7 @@ void serialEvent()
 }
 #endif
 
-#ifdef VECTOR
+#if TTYPE==2  // VECT
 double Vcalculate(const double tnow)
 {
   if ( VtnowStart_ == 0 )

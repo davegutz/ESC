@@ -6,19 +6,13 @@
 
 
 #if   CTYPE == 0  // P+I
-// Control Ref Step 11/19/2016
-static const double yLG[6]  = {2.4,   2.4,    2.7,    3.2,    3.75,   4.4};   // Loop gain, r/s
-static const double yTLD[6] = {0.475, 0.475,  0.325,  0.225,  0.200,  0.200}; // Lead, s
+#include "myPI.h"
 #elif CTYPE == 1  // I
-// Simplified ontrol Ref Step 11/19/2016
-static const double yLG[6]  = {2.4,   2.4,    2.7,    3.2,    3.75,   4.4};   // Loop gain, r/s
-static const double yTLD[6] = {0.0,   0.0,    0.0,    0.0,    0.0,    0.0};   // Lead, s
+#include "myI.h"
 #elif CTYPE == 2  // PID
-// Control Ref Step Fixed Lead 12/01/2016
-static const double tldF    = 0.15;                                           // Lead, s
-static const double tlgF    = 0.03;                                           // Lag, s
-static const double yLG[6]  = {3.6,   3.6,    3.75,   4.05,   5.,     5.};    // Loop gain, r/s
-static const double yTLD[6] = {0.420, 0.420,  0.240,  0.125,  0.090,  0.090}; // Lead, s
+#include "myPID.h"
+#else
+#error "Unknown CTYPE="
 #endif
 
 
