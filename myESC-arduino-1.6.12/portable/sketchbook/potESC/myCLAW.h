@@ -55,14 +55,14 @@ static const double LAMBDA = 3.17;                 // Turbine tip speed ratio to
 static const double DELTAV = 5.0;                  // Air velocity turbine first moves, m/s
 #elif KIT==0
 // Ard1_Turn0_ESC0_G0b_T0a 1/4/2017
-static const double xALL[6] = {0.,    21.7,  37.3,    50.5,   64.1,    80.};   // Gain breakpoints, %Nt
+static const double xALL[6] = {0.,    0.01,  27.2,    47.4,   75.1,    80.};   // Gain breakpoints, %Nt
 static const double P_V4_NT[3] = {0, 13952,   27};  // Coeff V4(v) to NT(rpm)
 //static const double P_LT_NG[2] = {-19172, 11411}; // Coeff throttle(deg) to NG(rpm)
-static const double P_NG_NT[2] = {-10716, 1.0185};  // Coeff NG(rpm) to NT(rpm)
-static const double P_NT_NG[2] = {10832,  0.9664};  // Coeff NT(rpm) to NG(rpm)
+static const double P_NG_NT[2] = {-8053, 0.9475};  // Coeff NG(rpm) to NT(rpm)
+static const double P_NT_NG[2] = {8510,  1.0550};  // Coeff NT(rpm) to NG(rpm)
 static const double DCPDL = -0.418;                // TODO dCpdLambda, dimensionless.  Cp is power coefficient and Lambda is speed tip ratio
 static const double LAMBDA = 2.54;                 // TODO Turbine tip speed ratio to air velocity, dimensionless
-static const double DELTAV = 2.0;                  // TODO Air velocity turbine first moves, m/s
+static const double DELTAV = 1.0;                  // TODO Air velocity turbine first moves, m/s
 #elif KIT==1
 // Ard1_Turn1x_ESC1_G1b_T1a
 static const double xALL[6] = {0.,    21.7,  37.3,    50.5,   64.1,    80.};   // Gain breakpoints, %Nt
@@ -70,19 +70,19 @@ static const double P_V4_NT[3] = {0, 12894, 288};  // Coeff V4(v) to NT(rpm)
 //static const double P_LT_NG[2] = {-19172, 11411};  // Coeff throttle(deg) to NG(rpm)
 static const double P_NG_NT[2] = {-5795, 0.9776};  // Coeff NG(rpm) to NT(rpm)
 static const double P_NT_NG[2] = {5943,  1.0222};  // Coeff NT(rpm) to NG(rpm)
-static const double DCPDL = -0.789;                // TODO dCpdLambda, dimensionless.  Cp is power coefficient and Lambda is speed tip ratio
-static const double LAMBDA = 3.16;                 // TODO Turbine tip speed ratio to air velocity, dimensionless
-static const double DELTAV = 1.0;                  // TODO Air velocity turbine first moves, m/s
+static const double DCPDL = -0.789;                // dCpdLambda, dimensionless.  Cp is power coefficient and Lambda is speed tip ratio
+static const double LAMBDA = 3.16;                 // Turbine tip speed ratio to air velocity, dimensionless
+static const double DELTAV = 1.0;                  // Air velocity turbine first moves, m/s
 #elif KIT==2
 // Ard2_Turn2_ESC2_G2b_T2a
 static const double xALL[6] = {0.,    22.0,  36.5,    49.1,   67.7,    80.};   // Gain breakpoints, %Nt
-static const double P_V4_NT[3] = {0, 15138, -814};  // Coeff V4(v) to NT(rpm)
+static const double P_V4_NT[3] = {0, 15314, -894};  // Coeff V4(v) to NT(rpm)
 //static const double P_LT_NG[2] = {-26667, 12863};   // Coeff throttle(deg) to NG(rpm)
 static const double P_NG_NT[2] = {-6083, 0.9489};   // Coeff NG(rpm) to NT(rpm)
 static const double P_NT_NG[2] = {6452, 1.0516};    // Coeff NT(rpm) to NG(rpm)
-static const double DCPDL = -1.158;                 // TODO dCpdLambda, dimensionless.  Cp is power coefficient and Lambda is speed tip ratio
-static const double LAMBDA = 3.11;                  // TODO Turbine tip speed ratio to air velocity, dimensionless
-static const double DELTAV = 5.0;                   // TODO Air velocity turbine first moves, m/s
+static const double DCPDL = -1.158;                 // dCpdLambda, dimensionless.  Cp is power coefficient and Lambda is speed tip ratio
+static const double LAMBDA = 3.11;                  // Turbine tip speed ratio to air velocity, dimensionless
+static const double DELTAV = 5.0;                   // Air velocity turbine first moves, m/s
 #elif KIT==3
 // Ard3_Turn3_ESC3_G3b_T3a
 static const double xALL[6] = {0.,    21.6,  37.0,    51.0,   70.8,    80.};   // Gain breakpoints, %Nt
@@ -90,9 +90,9 @@ static const double P_V4_NT[3] = {0, 15516, -1432};// Coeff V4(v) to NT(rpm)
 //static const double P_LT_NG[2] = {-31105, 14357};  // Coeff throttle(deg) to NG(rpm)
 static const double P_NG_NT[2] = {-7208, 0.9771};  // Coeff NG(rpm) to NT(rpm)
 static const double P_NT_NG[2] = {7404, 1.0221};   // Coeff NT(rpm) to NG(rpm)
-static const double DCPDL = -1.042;                // TODO dCpdLambda, dimensionless.  Cp is power coefficient and Lambda is speed tip ratio
-static const double LAMBDA = 2.84;                 // TODO Turbine tip speed ratio to air velocity, dimensionless
-static const double DELTAV = 5.0;                  // TODO Air velocity turbine first moves, m/s
+static const double DCPDL = -1.042;                // dCpdLambda, dimensionless.  Cp is power coefficient and Lambda is speed tip ratio
+static const double LAMBDA = 2.84;                 // Turbine tip speed ratio to air velocity, dimensionless
+static const double DELTAV = 5.0;                  // Air velocity turbine first moves, m/s
 #elif KIT==4
 // Ard4_Turn4_ESC4_G4b_T4a
 static const double xALL[6] = {0.,    21.6,  37.5,    51.3,   67.9,    80.};   // Gain breakpoints, %Nt
@@ -100,9 +100,9 @@ static const double P_V4_NT[3] = {0, 12801, 29};    // Coeff V4(v) to NT(rpm)
 //static const double P_LT_NG[2] = {-31258, 14180};   // Coeff throttle(deg) to NG(rpm)
 static const double P_NG_NT[2] = {-7440, 1.0080};   // Coeff NG(rpm) to NT(rpm)
 static const double P_NT_NG[2] = {7464,  0.9878};   // Coeff NT(rpm) to NG(rpm)
-static const double DCPDL = -0.975;                 // TODO dCpdLambda, dimensionless.  Cp is power coefficient and Lambda is speed tip ratio
-static const double LAMBDA = 3.13;                  // TODO Turbine tip speed ratio to air velocity, dimensionless
-static const double DELTAV = 4.0;                   // TODO Air velocity turbine first moves, m/s
+static const double DCPDL = -0.975;                 // dCpdLambda, dimensionless.  Cp is power coefficient and Lambda is speed tip ratio
+static const double LAMBDA = 3.13;                  // Turbine tip speed ratio to air velocity, dimensionless
+static const double DELTAV = 4.0;                   // Air velocity turbine first moves, m/s
 #endif
 
 // Control Law Class
