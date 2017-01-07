@@ -234,8 +234,8 @@ unsigned int Viv_ = 0;      // Index of present time in vector
 bool Rcomplete(void);
 double Rcalculate(double);
 void Rcomplete(bool);
-const double Rtv_[] =  {0,  8,  12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64, 68, 78}; // Time, s
-const double Rvv_[] =  {10, 18, 30, 42, 54, 66, 78, 90, 96, 90, 78, 66, 54, 42, 30, 18, 10, 10}; // Excitation
+const double Rtv_[] =  {0,  8,  68, 78, 138, 148}; // Time, s
+const double Rvv_[] =  {10, 10, 96, 96, 10,  10};  // Excitation
 const unsigned int Rnv_ = sizeof(Rtv_)/sizeof(double);  // Length of vector
 double Routput_ = 0;        // Excitation value
 double Rtime_ = 0;          // Time into vector, s
@@ -654,7 +654,7 @@ void Vcomplete(const bool set)
 
 
 
-// Vector calculator
+// Ramp calculator
 #if TTYPE==3  // RAMP
 double Rcalculate(const double tnow)
 {
@@ -666,12 +666,12 @@ double Rcalculate(const double tnow)
   }
   // Find location in vector
   Rtime_ = tnow-RtnowStart_;
-  while ( Rtv_[Riv_]<Rtime_ && Riv_<Rnv_ ) Riv_++;
+  while ( Rtv_[Riv_]<Rtime_ && Riv_<Rnv_ ) Riv_++;   // iv is location past now
   // Output
   if ( Riv_ == Rnv_ ) Rcomplete_ = true;
   unsigned int ir = Riv_;
   if ( ir==0 ) ir = 1;
-  Routput_ = Rvv_[ir-1];
+  Routput_ = (Rtime_-Rtv_[ir-1]) / (Rtv_[ir]-Rtv_[ir-1]) * (Rvv_[ir]-Rvv_[ir-1])  +  Rvv_[ir-1];
   /*
           sprintf_P(buffer, PSTR("time=%s"), String(time_).c_str());        Serial.print(buffer);
           sprintf_P(buffer, PSTR(",ir=%s"), String(ir_).c_str());        Serial.print(buffer);
