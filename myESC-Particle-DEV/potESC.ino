@@ -15,22 +15,25 @@ SYSTEM_THREAD(ENABLED); // Make sure code always run regardless of network statu
 #include "math.h"
 
 // Test features
-#define VECTOR
-//#define FREQUENCY
-//#define STEPS
-typedef enum {FREQ, STEP, VECT} testType;
-#if defined VECTOR
-testType testOnButton = VECT;
-#elif defined FREQUENCY
-testType testOnButton = FREQ;
-#elif defined STEPS
-testType testOnButton = STEP;
-#else
-#error Define one of VECTOR, FREQUENCY, or STEPS
-#endif
+#define CTYPE 2   // 0=P+I, 1=I, 2=PID
+#define KIT   1   // -1=Photon, 0-4 = Arduino
+#define TTYPE 3   // 0=STEP, 1=FREQ, 2=VECT, 3=RAMP
 extern int  verbose    = 1;     // [1] Debug, as much as you can tolerate.   For Photon set using "v#"
-extern bool bareOrTest = false; // [false] Fake inputs and sensors for test purposes.  For Photon set using "t"
+extern bool bare = false; // [false] Fake inputs and sensors for test purposes.  For Photon set using "b"
+extern bool test = false; // [false] Fake inputs and sensors for test purposes.  For Photon set using "t"
 double stepVal         = 6;     // [6] Step input, %nf.  Try to make same as freqRespAdder
+
+#if TTYPE==0  // STEP
+testType testOnButton = STEP;
+#elif TTYPE==1  // FREQ
+testType testOnButton = FREQ;
+#elif TTYPE==2  // VECT
+testType testOnButton = VECT;
+#elif TTYPE==3  // RAMP
+testType testOnButton = RAMP;
+#else
+#error "TTYPE bad"
+#endif
 
 /*
 Controlling a servo position using a potentiometer (variable resistor)
@@ -154,7 +157,7 @@ Connections for Arduino:
 #define CL_PIN 4                                               // Closed loop 3-way switch 5V or GND (D4 to GND)
 #define CLOCK_TCK 16UL                                         // Clock tick resolution, micros
 #define INSCALE 1023.0                                         // Input full range from OS
-const double vpotHalfDB = 0.15;                                // Half deadband sliding deadband filter, volts
+const double vpotHalfDB = 0.0;                                 // Half deadband sliding deadband filter, volts
 const double POT_MAX = 5.0;                                    // Maximum POT value, vdc
 const double F2V_MAX = 5.0;                                    // Maximum F2V value, vdc
 const double POT_BIA = 0.36 + vpotHalfDB;                      // Pot adder, vdc
@@ -210,13 +213,13 @@ String inputString = "";        // a string to hold incoming data
 boolean stringComplete = false; // whether the string is complete
 #endif
 
-#ifdef VECTOR
+#if TTYPE==2 // VECT
 // Test vector setup (functions at bottom of this file)
 bool Vcomplete(void);
 double Vcalculate(double);
 void Vcomplete(bool);
-const double Vtv_[] =  {0, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 40, 42, 48}; // Time, s
-const double Vvv_[] =  {6, 18, 30, 42, 54, 66, 78, 90, 96, 90, 78, 66, 54, 42, 30, 18, 6,  6};  // Excitation
+const double Vtv_[] =  {0,  8,  12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64, 68, 78}; // Time, s
+const double Vvv_[] =  {10, 18, 30, 42, 54, 66, 78, 90, 96, 90, 78, 66, 54, 42, 30, 18, 10, 10}; // Excitation
 const unsigned int Vnv_ = sizeof(Vtv_)/sizeof(double);  // Length of vector
 double Voutput_ = 0;        // Excitation value
 double Vtime_ = 0;          // Time into vector, s
@@ -224,6 +227,24 @@ double VtnowStart_ = 0;     // now time of vector start reference, s
 bool Vcomplete_ = false;    // Status of vector, T=underway
 unsigned int Viv_ = 0;      // Index of present time in vector
 #endif
+
+
+#if TTYPE==3 // RAMP
+// Ramp vector setup (functions at bottom of this file)
+bool Rcomplete(void);
+double Rcalculate(double);
+void Rcomplete(bool);
+const double Rtv_[] =  {0,  8,  12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64, 68, 78}; // Time, s
+const double Rvv_[] =  {10, 18, 30, 42, 54, 66, 78, 90, 96, 90, 78, 66, 54, 42, 30, 18, 10, 10}; // Excitation
+const unsigned int Rnv_ = sizeof(Rtv_)/sizeof(double);  // Length of vector
+double Routput_ = 0;        // Excitation value
+double Rtime_ = 0;          // Time into vector, s
+double RtnowStart_ = 0;     // now time of vector start reference, s
+bool Rcomplete_ = false;    // Status of vector, T=underway
+unsigned int Riv_ = 0;      // Index of present time in vector
+#endif
+
+
 
 void setup()
 {
@@ -241,7 +262,7 @@ void setup()
   double T = float(CONTROL_DELAY) / 1000000.0;
   throttleFilter = new LagTustin(T, tau, -0.1, 0.1);
 
-#ifdef FREQUENCY
+#if TTYPE==1
   // Frequency Response
   //                        wmin    wmax  dw    minCy numCySc  iniCy  wSlow
   analyzer = new FRAnalyzer(-0.8,   1.4,  0.1,  2,    1.0,     6,     1 / tauG,
@@ -315,7 +336,7 @@ void loop()
   // Executive
   if (start == 0UL) start = now;
   elapsedTime = double(now - start) * 1e-6;
-  if (bareOrTest)
+  if (bare)
   {
 #ifdef ARDUINO
     closingLoop = true;
@@ -334,7 +355,7 @@ void loop()
     {
       case FREQ:
       {
-#ifdef FREQUENCY
+#if TTYPE==1 // FREQ
         analyzer->complete(freqResp); // reset if doing freqResp
 #endif      
         freqResp = !freqResp;
@@ -348,8 +369,16 @@ void loop()
       }
       case VECT:
       {
-#ifdef VECTOR
+#if TTYPE==2 // VECT
         Vcomplete(vectoring); // reset if doing vector
+#endif
+        vectoring = !vectoring;
+        break;
+      }
+      case RAMP:
+      {
+#if TTYPE==3 // RAMP
+        Rcomplete(vectoring); // reset if doing vector
 #endif
         vectoring = !vectoring;
         break;
@@ -369,16 +398,21 @@ void loop()
     updateTime = float(deltaTick) / 1000000.0;
     lastControl = now;
   }
-#if defined FREQUENCY
+#if TTYPE==1 // FREQ
   if ( freqResp)
     analyzing = ( ((now - lastFR) >= FR_DELAY && !analyzer->complete()) );
-#elif defined VECTOR
+#elif TTYPE==2 // VECT
   if ( vectoring )
     analyzing = !Vcomplete();
+#elif TTYPE==3 // RAMP
+  if ( vectoring )
+    analyzing = !Rcomplete();
 #endif
   else
     analyzing = false;
   mode = closingLoop*100 + testOnButton*10 + analyzing;
+
+
 #ifndef ARDUINO
   // Serial event  (terminate Send String data with 0A using CoolTerm)
   if (stringComplete)
@@ -386,7 +420,7 @@ void loop()
     String doFR = "f\n";
     if (inputString == doFR)
     {
-#ifdef FREQUENCY
+#if TTYPE==1  // FREQ
       analyzer->complete(freqResp); // reset if doing freqResp
 #endif
       freqResp = !freqResp;
@@ -394,15 +428,28 @@ void loop()
     String doV = "V\n";
     if (inputString == doV)
     {
-#ifdef VECTOR
+#if TTYPE==2  // VECT
       Vcomplete(vectoring); // reset if doing vector
 #endif
       vectoring = !vectoring;
     }
-    String doBareOrTest = "t\n";
-    if (inputString == doBareOrTest)
+    String doR = "R\n";
+    if (inputString == doR)
     {
-      bareOrTest = !bareOrTest;
+#if TTYPE==3  // RAMP
+      Rcomplete(vectoring); // reset if doing vector
+#endif
+      vectoring = !vectoring;
+    }
+    String dobare = "b\n";
+    if (inputString == dobare)
+    {
+      bare = !bare;
+    }
+    String dotest = "t\n";
+    if (inputString == dotest)
+    {
+      test = !test;
     }
     String doCL = "c\n";
     if (inputString == doCL)
@@ -420,15 +467,26 @@ void loop()
       int vcheck = atoi(inputString.substring(1));
       if (vcheck>=0 && vcheck<10) verbose = vcheck;
     }
+    if (inputString.charAt(0) == 'P')
+    {
+      double potThrottleX = atof(inputString.substring(1));
+      if (potThrottleX>=THTL_MIN && potThrottleX<=THTL_MAX)  // ignore otherwise
+      {
+          double vpotX = potThrottleX * POT_MAX / THTL_MAX;
+          potValue  = (vpotX*POT_SCL + POT_BIA)/POT_MAX*INSCALE;
+      } 
+    }
     inputString = "";
     stringComplete = false;
   }
 #endif
 
+
+
   // Interrogate inputs
   if (control)
   {
-    if (!bareOrTest)
+    if (!bare)
     {
       potValue = analogRead(POT_PIN);
       f2vValue = analogRead(F2V_PIN);
@@ -444,7 +502,7 @@ void loop()
     if (!freqResp)
       vpot_filt = throttleFilter->calculate(vpotDead, RESET); // Freeze pot for FR
     double potThrottle = vpot_filt * THTL_MAX / POT_MAX;      // deg
-    double dNdT = P_LT_NG[1] / fmax(potThrottle, 1) / RPM_P;  // Rate normalizer, %Ng/deg
+    double dNdT = P_LTALL_NG[1] / fmax(potThrottle, 1) / RPM_P;  // Rate normalizer, %Ng/deg
     potThrottle += stepping * stepVal / dNdT;
     throttle = CLAW->calculate(RESET, updateTime, closingLoop, analyzing, freqResp, vectoring, exciter, freqRespScalar, freqRespAdder, potThrottle, vf2v);
     if (elapsedTime > RESEThold)
@@ -466,10 +524,12 @@ void loop()
     fn[3] = CLAW->pcntRef();
     if (analyzing)
     {
-#if defined FREQUENCY
+#if TTYPE==1  // FREQ
       if ( freqResp ) exciter = analyzer->calculate(fn, nsigFn); // use previous exciter for everything
-#elif defined VECTOR
+#elif TTYPE==2 // VECT
       if ( vectoring ) exciter = Vcalculate(elapsedTime);
+#elif TTYPE==3 // RAMP
+      if ( vectoring ) exciter = Rcalculate(elapsedTime);
 #endif
     }
   }
@@ -487,9 +547,12 @@ void loop()
                 String(CLAW->modelTS()).c_str(), String(CLAW->pcnt()).c_str(),
                 String(updateTime, 6).c_str());
         Serial.print(buffer);
-#ifdef FREQUENCY
-        if (!analyzer->complete()) analyzer->publish();
+        if (!analyzer->complete())
+        {
+#if TTYPE==1 // FREQ
+          analyzer->publish();
 #endif
+        }
         Serial.println("");
       }
     } // freqResp
@@ -512,12 +575,16 @@ void loop()
       }
     }
   } // publish
-#if defined FREQUENCY
+#if TTYPE==1 // FREQ
   if (analyzer->complete()) freqResp = false;
-#elif defined VECTOR
+#elif TTYPE==2 // VECT
   if (Vcomplete()) vectoring = false;
+#elif TTYPE==3 // RAMP
+  if (Rcomplete()) vectoring = false;
 #endif
 }
+
+
 
 #ifndef ARDUINO
 /*
@@ -545,7 +612,9 @@ void serialEvent()
 }
 #endif
 
-#ifdef VECTOR
+
+// Vector calculator
+#if TTYPE==2  // VECT
 double Vcalculate(const double tnow)
 {
   if ( VtnowStart_ == 0 )
@@ -566,7 +635,7 @@ double Vcalculate(const double tnow)
           sprintf_P(buffer, PSTR("time=%s"), String(time_).c_str());        Serial.print(buffer);
           sprintf_P(buffer, PSTR(",iv=%s"), String(iv_).c_str());        Serial.print(buffer);
           sprintf_P(buffer, PSTR(",tv[iv]=%s"), String(tv_[iv_]).c_str());        Serial.print(buffer);
-          sprintf_P(buffer, PSTR(",output=%s\n"), String(output_).c_str());        Serial.print(buffer);
+          sprintf_P(buffer, PSTR(",output=%s\n"), String(Voutput_).c_str());        Serial.print(buffer);
 */
   return ( Voutput_ );
 };
@@ -583,3 +652,43 @@ void Vcomplete(const bool set)
 };
 #endif
 
+
+
+// Vector calculator
+#if TTYPE==3  // RAMP
+double Rcalculate(const double tnow)
+{
+  if ( RtnowStart_ == 0 )
+  {
+    RtnowStart_ = tnow;  // First call sets time
+    Rcomplete_ = false;
+    Riv_ = 0;
+  }
+  // Find location in vector
+  Rtime_ = tnow-RtnowStart_;
+  while ( Rtv_[Riv_]<Rtime_ && Riv_<Rnv_ ) Riv_++;
+  // Output
+  if ( Riv_ == Rnv_ ) Rcomplete_ = true;
+  unsigned int ir = Riv_;
+  if ( ir==0 ) ir = 1;
+  Routput_ = Rvv_[ir-1];
+  /*
+          sprintf_P(buffer, PSTR("time=%s"), String(time_).c_str());        Serial.print(buffer);
+          sprintf_P(buffer, PSTR(",ir=%s"), String(ir_).c_str());        Serial.print(buffer);
+          sprintf_P(buffer, PSTR(",tr[ir]=%s"), String(tr_[ir_]).c_str());        Serial.print(buffer);
+          sprintf_P(buffer, PSTR(",output=%s\n"), String(Routput_).c_str());        Serial.print(buffer);
+*/
+  return ( Routput_ );
+};
+
+bool Rcomplete(void) { return (Rcomplete_); };
+
+// Restart ramp
+void Rcomplete(const bool set)
+{
+  Riv_ = 0;
+  Rcomplete_ = false;
+  Rtime_ = 0;
+  RtnowStart_ = 0;
+};
+#endif
