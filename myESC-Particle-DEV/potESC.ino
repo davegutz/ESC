@@ -510,7 +510,7 @@ void loop()
   }
 
   // Commands to Hardware
-  if (control)
+  if (control && !test && !bare)
   {
     myservo.write(throttle); // sets the servo position according to the scaled value
   }
