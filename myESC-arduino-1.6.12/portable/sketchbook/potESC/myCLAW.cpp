@@ -154,7 +154,7 @@ void ControlLaw::model(const double throttle, const int RESET, const double upda
   if (RESET)
     modPcng_ = fmin(fmax((P_NT_NG[0] + pcntRef_ * RPM_P * P_NT_NG[1]) / RPM_P, 0), 100);
   else
-    modPcng_ = fmin(fmax(1.15*(P_LTALL_NG[0] + P_LTALL_NG[1] * log(double(int(throttle)))) / RPM_P, 0.0), 100);
+    modPcng_ = fmin(fmax(1.00*(P_LTALL_NG[0] + P_LTALL_NG[1] * log(double(int(throttle)))) / RPM_P, 0.0), 100);
   double Fg_SI = FG_SI * pow(modelG_ / 100, 3);    // N
   double Vw_SI = sqrt(Fg_SI / AREA_SI / DENS_SI_); // m/s
   dQt_dNt = fmin(dQ_ * (Vw_SI - DELTAV), -1e-16);

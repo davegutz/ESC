@@ -218,8 +218,8 @@ boolean stringComplete = false; // whether the string is complete
 bool Vcomplete(void);
 double Vcalculate(double);
 void Vcomplete(bool);
-const double Vtv_[] =  {0,  8,  12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64, 68, 78}; // Time, s
-const double Vvv_[] =  {10, 18, 30, 42, 54, 66, 78, 90, 96, 90, 78, 66, 54, 42, 30, 18, 10, 10}; // Excitation
+const double Vtv_[] =  {0,  8,  16, 24, 32, 40, 48, 56, 64, 72, 80, 88, 96, 104,  112,  120,  128,  140}; // Time, s
+const double Vvv_[] =  {10, 18, 30, 42, 54, 66, 78, 90, 96, 90, 78, 66, 54, 42,   30,   18,   10,   10}; // Excitation
 const unsigned int Vnv_ = sizeof(Vtv_)/sizeof(double);  // Length of vector
 double Voutput_ = 0;        // Excitation value
 double Vtime_ = 0;          // Time into vector, s
