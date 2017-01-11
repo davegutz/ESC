@@ -410,7 +410,7 @@ void loop()
 #endif
   else
     analyzing = false;
-  mode = closingLoop*100 + testOnButton*10 + analyzing;
+  mode = closingLoop*100 + testOnButton*10 + test*2 + analyzing;
 
 
 #ifndef ARDUINO
