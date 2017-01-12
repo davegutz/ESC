@@ -3,13 +3,15 @@
 
 #include "myTables.h"
 #include "myFilters.h"
+#define CTYPE 1   // 0=P+I, 1=I, 2=PID
+#define KIT   1   // -1=Photon, 0-4 = Arduino
 
 
-#if   CTYPE == 0  // P+I
+#if   CTYPE==0  // P+I
 #include "myPI.h"
-#elif CTYPE == 1  // I
+#elif CTYPE==1  // I
 #include "myI.h"
-#elif CTYPE == 2  // PID
+#elif CTYPE==2  // PID
 #include "myPID.h"
 #else
 #error "Unknown CTYPE="
@@ -37,6 +39,8 @@ static const double THTL_MAX = 180; // Maximum throttle, deg
 static const double NG_MAX = 100;   // Maximum trim, %Ng
 
 static const double P_LTALL_NG[2] = {-25454, 13062};  // Common coeff throttle(deg) to NG(rpm)
+static const double P_NGALL_NT[2] = {-7208, 1.0000};  // Coeff NG(rpm) to NT(rpm)
+static const double P_NTALL_NG[2] = {-7208, 1.0000};  // Coeff NG(rpm) to NT(rpm)
 #if KIT==-1
 // CalPhotonTurnigy 12/24/2016
 static const double xALL[6] = {0.,    16.,    25.,    47.5,   62.,    80.};   // Gain breakpoints, %Nt
@@ -114,6 +118,8 @@ public:
                    const double freqRespAdder, const double potThrottle, const double vf2v);
   double e(void) { return (e_); };
   double intState(void) { return (intState_); };
+  double Ki(void) {return (Ki_); };
+  double Kp(void) {return (Kp_); };
   double modelTS(void) { return (modelTS_); };
   double modelG(void) { return (modelG_); };
   double p(void) { return (p_); };
@@ -122,7 +128,7 @@ public:
 private:
   double throttleLims(const int RESET, const double updateTime, const boolean closingLoop,
                   const boolean freqResp, const boolean vectoring, const double exciter, const double freqRespScalar,
-                  const double freqRespAdder, const double potThrottle);
+                  const double freqRespAdder, const double potThrottle, const double ngmin);
   void model(const double throttle, const int RESET, const double updateTime);
   LeadLagExp *modelFilterG_; // Exponential lag model gas gen
   LeadLagExp *modelFilterT_; // Exponential lag model turbine
@@ -133,6 +139,8 @@ private:
   double dQ_;                // Precalculated coefficient, N-m/rpm/(m/s)
   double e_;                 // Closed loop error, %Nt
   double intState_;          // PI control integrate state, deg
+  double Ki_;                // Integral gain, r/s
+  double Kp_;                // Proportional gain, rad
   double modelG_;            // Model Gas Generator output, %Ng
   double modelT_;            // Model Turbine, %Nt
   double modelTS_;           // Model Turbine Sensed, %Nt

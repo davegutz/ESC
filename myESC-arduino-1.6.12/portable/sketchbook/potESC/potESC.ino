@@ -15,13 +15,13 @@ SYSTEM_THREAD(ENABLED); // Make sure code always run regardless of network statu
 #include "math.h"
 
 // Test features
-#define CTYPE 2   // 0=P+I, 1=I, 2=PID
-#define KIT   1   // -1=Photon, 0-4 = Arduino
-#define TTYPE 3   // 0=STEP, 1=FREQ, 2=VECT, 3=RAMP
+// in myClaw.h  #define CTYPE 1   // 0=P+I, 1=I, 2=PID
+// in myClaw.h  #define KIT   1   // -1=Photon, 0-4 = Arduino
+#define TTYPE 2   // 0=STEP, 1=FREQ, 2=VECT, 3=RAMP
 extern int  verbose    = 1;     // [1] Debug, as much as you can tolerate.   For Photon set using "v#"
-extern bool bare = false; // [false] Fake inputs and sensors for test purposes.  For Photon set using "b"
-extern bool test = false; // [false] Fake inputs and sensors for test purposes.  For Photon set using "t"
-double stepVal         = 6;     // [6] Step input, %nf.  Try to make same as freqRespAdder
+extern bool bare = false;       // [false] Fake inputs and sensors for test purposes.  For Photon set using "b"
+extern bool test = false;       // [false] Fake inputs and sensors for test purposes.  For Photon set using "t"
+double      stepVal = 6;        // [6] Step input, %nf.  Try to make same as freqRespAdder
 
 #if TTYPE==0  // STEP
 testType testOnButton = STEP;
@@ -410,7 +410,7 @@ void loop()
 #endif
   else
     analyzing = false;
-  mode = closingLoop*100 + testOnButton*10 + test*2 + analyzing;
+  mode = closingLoop*1000 + test*100 + testOnButton*10 + analyzing;
 
 
 #ifndef ARDUINO
