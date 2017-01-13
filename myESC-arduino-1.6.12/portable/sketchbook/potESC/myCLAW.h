@@ -74,7 +74,8 @@ static const double DELTAV = 1.0;                  // Air velocity turbine first
 #elif KIT==2
 // Ard2_Turn2_ESC2_G2b_T2a
 static const double xALL[6] = {0.,    22.0,  36.5,    49.1,   67.7,    80.};   // Gain breakpoints, %Nt
-static const double P_V4_NT[3] = {0, 15929, -1553}; // Coeff V4(v) to NT(rpm)
+//static const double P_V4_NT[3] = {0, 15929, -1553}; // Coeff V4(v) to NT(rpm)
+static const double P_V4_NT[3] = {0, 15501, -1097}; // Coeff V4(v) to NT(rpm)   r2_ct1_ol_atten_20170113.xlsx  add attenuator.  cross plot v4, theo Nt
 //static const double P_LT_NG[2] = {-21339, 12143};   // Coeff throttle(deg) to NG(rpm)
 static const double P_NG_NT[2] = {-5553, 0.9312};   // Coeff NG(rpm) to NT(rpm)
 static const double P_NT_NG[2] = {5986, 1.0728};    // Coeff NT(rpm) to NG(rpm)

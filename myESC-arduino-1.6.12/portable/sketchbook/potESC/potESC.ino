@@ -218,8 +218,8 @@ boolean stringComplete = false; // whether the string is complete
 bool Vcomplete(void);
 double Vcalculate(double);
 void Vcomplete(bool);
-const double Vtv_[] =  {0,  8,  16, 24, 32, 40, 48, 56, 64, 72, 80, 88, 96, 104,  112,  120,  128,  140}; // Time, s
-const double Vvv_[] =  {10, 18, 30, 42, 54, 66, 78, 90, 96, 90, 78, 66, 54, 42,   30,   18,   10,   10}; // Excitation
+const double Vtv_[] =  {0,  8,  16, 24, 32, 40, 48, 56, 64, 72, 80, 88, 96, 104,  112,  120,  128,  136, 144, 152, 156}; // Time, s
+const double Vvv_[] =  {10, 20, 25, 30, 42, 48, 56, 62, 77, 90, 96, 90, 77, 62,   56,   48,   42,   30,  25,  20,  10};  // Excitation
 const unsigned int Vnv_ = sizeof(Vtv_)/sizeof(double);  // Length of vector
 double Voutput_ = 0;        // Excitation value
 double Vtime_ = 0;          // Time into vector, s
@@ -564,6 +564,7 @@ void loop()
         sprintf(buffer, "%s,", String(elapsedTime, 6).c_str()); Serial.print(buffer);
         sprintf(buffer, "%s, ", String(mode).c_str()); Serial.print(buffer);
         sprintf(buffer, "%s,  ", String(vpot, 3).c_str()); Serial.print(buffer);
+//        sprintf(buffer, "%s,  ", String(vf2v, 3).c_str()); Serial.print(buffer);
         sprintf(buffer, "%s,", String(CLAW->pcntRef()).c_str()); Serial.print(buffer);
         sprintf(buffer, "%s,", String(CLAW->pcnt()).c_str()); Serial.print(buffer);
         sprintf(buffer, "%s,  ", String(CLAW->modelTS()).c_str()); Serial.print(buffer);
