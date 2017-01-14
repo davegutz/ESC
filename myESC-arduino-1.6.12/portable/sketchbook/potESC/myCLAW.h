@@ -4,7 +4,7 @@
 #include "myTables.h"
 #include "myFilters.h"
 #define CTYPE 1   // 0=P+I, 1=I, 2=PID
-#define KIT   2   // -1=Photon, 0-4 = Arduino
+#define KIT   3   // -1=Photon, 0-4 = Arduino
 
 
 #if   CTYPE==0  // P+I
@@ -85,13 +85,13 @@ static const double DELTAV = 4;                     // Air velocity turbine firs
 #elif KIT==3
 // Ard3_Turn3_ESC3_G3b_T3a
 static const double xALL[6] = {0.,    21.6,  37.0,    51.0,   70.8,    80.};   // Gain breakpoints, %Nt
-static const double P_V4_NT[3] = {0, 15516, -1432};// Coeff V4(v) to NT(rpm)
-//static const double P_LT_NG[2] = {-31105, 14357};  // Coeff throttle(deg) to NG(rpm)
-static const double P_NG_NT[2] = {-7208, 0.9771};  // Coeff NG(rpm) to NT(rpm)
-static const double P_NT_NG[2] = {7404, 1.0221};   // Coeff NT(rpm) to NG(rpm)
-static const double DCPDL = -1.042;                // dCpdLambda, dimensionless.  Cp is power coefficient and Lambda is speed tip ratio
-static const double LAMBDA = 2.84;                 // Turbine tip speed ratio to air velocity, dimensionless
-static const double DELTAV = 5.0;                  // Air velocity turbine first moves, m/s
+static const double P_V4_NT[3] = {0, 13130,   111};// Coeff V4(v) to NT(rpm)
+//static const double P_LT_NG[2] = {-23777, 12519};// Coeff throttle(deg) to NG(rpm)
+static const double P_NG_NT[2] = {-6115, 0.9573};  // Coeff NG(rpm) to NT(rpm)
+static const double P_NT_NG[2] = {6404, 1.0438};   // Coeff NT(rpm) to NG(rpm)
+static const double DCPDL = -0.697;                // dCpdLambda, dimensionless.  Cp is power coefficient and Lambda is speed tip ratio
+static const double LAMBDA = 2.95;                 // Turbine tip speed ratio to air velocity, dimensionless
+static const double DELTAV = 3.0;                  // Air velocity turbine first moves, m/s
 #elif KIT==4
 // Ard4_Turn4_ESC4_G4b_T4a
 static const double xALL[6] = {0.,    21.6,  37.5,    51.3,   67.9,    80.};   // Gain breakpoints, %Nt
