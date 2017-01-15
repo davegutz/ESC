@@ -15,13 +15,14 @@ SYSTEM_THREAD(ENABLED); // Make sure code always run regardless of network statu
 #include "math.h"
 
 // Test features
-#define CTYPE 2   // 0=P+I, 1=I, 2=PID
-#define KIT   1   // -1=Photon, 0-4 = Arduino
-#define TTYPE 3   // 0=STEP, 1=FREQ, 2=VECT, 3=RAMP
+// in myClaw.h  #define CTYPE 1   // 0=P+I, 1=I, 2=PID
+// in myClaw.h  #define KIT   1   // -1=Photon, 0-4 = Arduino
+#define TTYPE 2   // 0=STEP, 1=FREQ, 2=VECT, 3=RAMP (ramp is open loop only)
+//#define VPOTISV4  // Use this to port converted v4 to the vpot serial signal for calibration
 extern int  verbose    = 1;     // [1] Debug, as much as you can tolerate.   For Photon set using "v#"
-extern bool bare = false; // [false] Fake inputs and sensors for test purposes.  For Photon set using "b"
-extern bool test = false; // [false] Fake inputs and sensors for test purposes.  For Photon set using "t"
-double stepVal         = 6;     // [6] Step input, %nf.  Try to make same as freqRespAdder
+bool bare = false;       // [false] The microprocessor is completely disconnected.  Fake inputs and sensors for test purposes.  For Photon set using "b"
+extern bool test = false;       // [false] The turbine and ESC are disconnected.  Fake inputs and sensors for test purposes.  For Photon set using "t"
+double      stepVal = 6;        // [6] Step input, %nf.  Try to make same as freqRespAdder
 
 #if TTYPE==0  // STEP
 testType testOnButton = STEP;
@@ -218,8 +219,8 @@ boolean stringComplete = false; // whether the string is complete
 bool Vcomplete(void);
 double Vcalculate(double);
 void Vcomplete(bool);
-const double Vtv_[] =  {0,  8,  12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64, 68, 78}; // Time, s
-const double Vvv_[] =  {10, 18, 30, 42, 54, 66, 78, 90, 96, 90, 78, 66, 54, 42, 30, 18, 10, 10}; // Excitation
+const double Vtv_[] =  {0,  8,  16, 24, 32, 40, 48, 56, 64, 72, 80, 88, 96, 104,  112,  120,  128,  136, 144, 152, 156}; // Time, s
+const double Vvv_[] =  {10, 20, 25, 30, 42, 48, 56, 62, 77, 90, 96, 90, 77, 62,   56,   48,   42,   30,  25,  20,  10};  // Excitation
 const unsigned int Vnv_ = sizeof(Vtv_)/sizeof(double);  // Length of vector
 double Voutput_ = 0;        // Excitation value
 double Vtime_ = 0;          // Time into vector, s
@@ -284,7 +285,11 @@ void setup()
   if (verbose > 0)
   {
     //******************************************************************************************************************************
+#ifdef VPOTISV4
+    sprintf(buffer, "time,mode,vf2v,  pcntref,pcntSense,pcntSenseM,  err,state,thr, modPcng,T\n");
+#else
     sprintf(buffer, "time,mode,vpot,  pcntref,pcntSense,pcntSenseM,  err,state,thr, modPcng,T\n");
+#endif
     Serial.print(buffer);
   }
 
@@ -319,8 +324,10 @@ void loop()
   static double updateTime = 0.0;         // Control law update time, sec
   static unsigned long lastControl = 0UL; // Last control law time, micros
   static unsigned long lastPublish = 0UL; // Last publish time, micros
+#ifdef ARDUINO
   static unsigned long lastButton = 0UL;  // Last button push time, micros
   static unsigned long lastFR = 0UL;      // Last analyzing, micros
+#endif
   static int mode = 0;                    // Mode of operation First digit: closingLoop, Second digit: testOnButton, Third digit:  analyzing
   static int RESET = 1;                   // Dynamic reset
   const double RESEThold = 5;             // RESET hold, s
@@ -410,7 +417,7 @@ void loop()
 #endif
   else
     analyzing = false;
-  mode = closingLoop*100 + testOnButton*10 + analyzing;
+  mode = closingLoop*1000 + test*100 + testOnButton*10 + analyzing;
 
 
 #ifndef ARDUINO
@@ -563,7 +570,11 @@ void loop()
       {
         sprintf(buffer, "%s,", String(elapsedTime, 6).c_str()); Serial.print(buffer);
         sprintf(buffer, "%s, ", String(mode).c_str()); Serial.print(buffer);
+#ifdef VPOTISV4
+        sprintf(buffer, "%s,  ", String(vf2v, 3).c_str()); Serial.print(buffer);
+#else
         sprintf(buffer, "%s,  ", String(vpot, 3).c_str()); Serial.print(buffer);
+#endif
         sprintf(buffer, "%s,", String(CLAW->pcntRef()).c_str()); Serial.print(buffer);
         sprintf(buffer, "%s,", String(CLAW->pcnt()).c_str()); Serial.print(buffer);
         sprintf(buffer, "%s,  ", String(CLAW->modelTS()).c_str()); Serial.print(buffer);

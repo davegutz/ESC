@@ -20,7 +20,7 @@ SYSTEM_THREAD(ENABLED); // Make sure code always run regardless of network statu
 #define TTYPE 2   // 0=STEP, 1=FREQ, 2=VECT, 3=RAMP (ramp is open loop only)
 //#define VPOTISV4  // Use this to port converted v4 to the vpot serial signal for calibration
 extern int  verbose    = 1;     // [1] Debug, as much as you can tolerate.   For Photon set using "v#"
-extern bool bare = false;       // [false] The microprocessor is completely disconnected.  Fake inputs and sensors for test purposes.  For Photon set using "b"
+bool bare = false;       // [false] The microprocessor is completely disconnected.  Fake inputs and sensors for test purposes.  For Photon set using "b"
 extern bool test = false;       // [false] The turbine and ESC are disconnected.  Fake inputs and sensors for test purposes.  For Photon set using "t"
 double      stepVal = 6;        // [6] Step input, %nf.  Try to make same as freqRespAdder
 
@@ -324,8 +324,10 @@ void loop()
   static double updateTime = 0.0;         // Control law update time, sec
   static unsigned long lastControl = 0UL; // Last control law time, micros
   static unsigned long lastPublish = 0UL; // Last publish time, micros
+#ifdef ARDUINO
   static unsigned long lastButton = 0UL;  // Last button push time, micros
   static unsigned long lastFR = 0UL;      // Last analyzing, micros
+#endif
   static int mode = 0;                    // Mode of operation First digit: closingLoop, Second digit: testOnButton, Third digit:  analyzing
   static int RESET = 1;                   // Dynamic reset
   const double RESEThold = 5;             // RESET hold, s

@@ -3,13 +3,15 @@
 
 #include "myTables.h"
 #include "myFilters.h"
+#define CTYPE 1   // 0=P+I, 1=I, 2=PID
+#define KIT   3   // -1=Photon, 0-4 = Arduino
 
 
-#if   CTYPE == 0  // P+I
+#if   CTYPE==0  // P+I
 #include "myPI.h"
-#elif CTYPE == 1  // I
+#elif CTYPE==1  // I
 #include "myI.h"
-#elif CTYPE == 2  // PID
+#elif CTYPE==2  // PID
 #include "myPID.h"
 #else
 #error "Unknown CTYPE="
@@ -37,6 +39,8 @@ static const double THTL_MAX = 180; // Maximum throttle, deg
 static const double NG_MAX = 100;   // Maximum trim, %Ng
 
 static const double P_LTALL_NG[2] = {-25454, 13062};  // Common coeff throttle(deg) to NG(rpm)
+static const double P_NGALL_NT[2] = {-7208, 1.0000};  // Coeff NG(rpm) to NT(rpm)
+static const double P_NTALL_NG[2] = {-7208, 1.0000};  // Coeff NG(rpm) to NT(rpm)
 #if KIT==-1
 // CalPhotonTurnigy 12/24/2016
 static const double xALL[6] = {0.,    16.,    25.,    47.5,   62.,    80.};   // Gain breakpoints, %Nt
@@ -70,23 +74,24 @@ static const double DELTAV = 1.0;                  // Air velocity turbine first
 #elif KIT==2
 // Ard2_Turn2_ESC2_G2b_T2a
 static const double xALL[6] = {0.,    22.0,  36.5,    49.1,   67.7,    80.};   // Gain breakpoints, %Nt
-static const double P_V4_NT[3] = {0, 15314, -894};  // Coeff V4(v) to NT(rpm)
-//static const double P_LT_NG[2] = {-26667, 12863};   // Coeff throttle(deg) to NG(rpm)
-static const double P_NG_NT[2] = {-6083, 0.9489};   // Coeff NG(rpm) to NT(rpm)
-static const double P_NT_NG[2] = {6452, 1.0516};    // Coeff NT(rpm) to NG(rpm)
-static const double DCPDL = -1.158;                 // dCpdLambda, dimensionless.  Cp is power coefficient and Lambda is speed tip ratio
-static const double LAMBDA = 3.11;                  // Turbine tip speed ratio to air velocity, dimensionless
-static const double DELTAV = 5.0;                   // Air velocity turbine first moves, m/s
+//static const double P_V4_NT[3] = {0, 15929, -1553}; // Coeff V4(v) to NT(rpm)
+static const double P_V4_NT[3] = {0, 15501, -1097}; // Coeff V4(v) to NT(rpm)   r2_ct1_ol_atten_20170113.xlsx  add attenuator.  cross plot v4, theo Nt
+//static const double P_LT_NG[2] = {-21339, 12143};   // Coeff throttle(deg) to NG(rpm)
+static const double P_NG_NT[2] = {-5553, 0.9312};   // Coeff NG(rpm) to NT(rpm)
+static const double P_NT_NG[2] = {5986, 1.0728};    // Coeff NT(rpm) to NG(rpm)
+static const double DCPDL = -0.927;                 // dCpdLambda, dimensionless.  Cp is power coefficient and Lambda is speed tip ratio
+static const double LAMBDA = 2.99;                  // Turbine tip speed ratio to air velocity, dimensionless
+static const double DELTAV = 4;                     // Air velocity turbine first moves, m/s
 #elif KIT==3
 // Ard3_Turn3_ESC3_G3b_T3a
 static const double xALL[6] = {0.,    21.6,  37.0,    51.0,   70.8,    80.};   // Gain breakpoints, %Nt
-static const double P_V4_NT[3] = {0, 15516, -1432};// Coeff V4(v) to NT(rpm)
-//static const double P_LT_NG[2] = {-31105, 14357};  // Coeff throttle(deg) to NG(rpm)
-static const double P_NG_NT[2] = {-7208, 0.9771};  // Coeff NG(rpm) to NT(rpm)
-static const double P_NT_NG[2] = {7404, 1.0221};   // Coeff NT(rpm) to NG(rpm)
-static const double DCPDL = -1.042;                // dCpdLambda, dimensionless.  Cp is power coefficient and Lambda is speed tip ratio
-static const double LAMBDA = 2.84;                 // Turbine tip speed ratio to air velocity, dimensionless
-static const double DELTAV = 5.0;                  // Air velocity turbine first moves, m/s
+static const double P_V4_NT[3] = {0, 13130,   111};// Coeff V4(v) to NT(rpm)
+//static const double P_LT_NG[2] = {-23777, 12519};// Coeff throttle(deg) to NG(rpm)
+static const double P_NG_NT[2] = {-6115, 0.9573};  // Coeff NG(rpm) to NT(rpm)
+static const double P_NT_NG[2] = {6404, 1.0438};   // Coeff NT(rpm) to NG(rpm)
+static const double DCPDL = -0.697;                // dCpdLambda, dimensionless.  Cp is power coefficient and Lambda is speed tip ratio
+static const double LAMBDA = 2.95;                 // Turbine tip speed ratio to air velocity, dimensionless
+static const double DELTAV = 3.0;                  // Air velocity turbine first moves, m/s
 #elif KIT==4
 // Ard4_Turn4_ESC4_G4b_T4a
 static const double xALL[6] = {0.,    21.6,  37.5,    51.3,   67.9,    80.};   // Gain breakpoints, %Nt
@@ -114,6 +119,8 @@ public:
                    const double freqRespAdder, const double potThrottle, const double vf2v);
   double e(void) { return (e_); };
   double intState(void) { return (intState_); };
+  double Ki(void) {return (Ki_); };
+  double Kp(void) {return (Kp_); };
   double modelTS(void) { return (modelTS_); };
   double modelG(void) { return (modelG_); };
   double p(void) { return (p_); };
@@ -122,7 +129,7 @@ public:
 private:
   double throttleLims(const int RESET, const double updateTime, const boolean closingLoop,
                   const boolean freqResp, const boolean vectoring, const double exciter, const double freqRespScalar,
-                  const double freqRespAdder, const double potThrottle);
+                  const double freqRespAdder, const double potThrottle, const double ngmin);
   void model(const double throttle, const int RESET, const double updateTime);
   LeadLagExp *modelFilterG_; // Exponential lag model gas gen
   LeadLagExp *modelFilterT_; // Exponential lag model turbine
@@ -133,6 +140,8 @@ private:
   double dQ_;                // Precalculated coefficient, N-m/rpm/(m/s)
   double e_;                 // Closed loop error, %Nt
   double intState_;          // PI control integrate state, deg
+  double Ki_;                // Integral gain, r/s
+  double Kp_;                // Proportional gain, rad
   double modelG_;            // Model Gas Generator output, %Ng
   double modelT_;            // Model Turbine, %Nt
   double modelTS_;           // Model Turbine Sensed, %Nt
