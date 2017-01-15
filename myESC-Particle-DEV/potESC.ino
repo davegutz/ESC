@@ -18,7 +18,7 @@ SYSTEM_THREAD(ENABLED); // Make sure code always run regardless of network statu
 // in myClaw.h  #define CTYPE 1   // 0=P+I, 1=I, 2=PID
 // in myClaw.h  #define KIT   1   // -1=Photon, 0-4 = Arduino
 #define TTYPE 2          // 0=STEP, 1=FREQ, 2=VECT, 3=RAMP (ramp is open loop only)
-//#define VPOTISV4         // Use this to port converted v4 to the vpot serial signal for calibration
+//#define CALIBRATING         // Use this to port converted v4 to the vpot serial signal for calibration
 int     verbose = 1;     // [1] Debug, as much as you can tolerate.   For Photon set using "v#"
 bool    bare = false;    // [false] The microprocessor is completely disconnected.  Fake inputs and sensors for test purposes.  For Photon set using "b"
 bool    test = false;    // [false] The turbine and ESC are disconnected.  Fake inputs and sensors for test purposes.  For Photon set using "t"
@@ -178,7 +178,11 @@ const double POT_BIA = 0.0;                       // Pot adder, vdc
 const double POT_SCL = (3.3 - POT_BIA) / POT_MAX; // Pot scalar, vdc
 #endif
 //********constants for all*******************
+#ifdef CALIBRATING
+#define PUBLISH_DELAY 150000UL // Time between cloud updates (), micros
+#else
 #define PUBLISH_DELAY 15000UL // Time between cloud updates (), micros
+#endif
 #define CONTROL_DELAY 15000UL // Control law wait (), micros
 #define FR_DELAY 4000000UL    // Time to start FR, micros
 const double F2V_MIN = 0.0;   // Minimum F2V value, vdc
@@ -285,7 +289,7 @@ void setup()
   if (verbose > 0)
   {
     //******************************************************************************************************************************
-#ifdef VPOTISV4
+#ifdef CALIBRATING
     sprintf(buffer, "time,mode,vf2v,  pcntref,pcntSense,pcntSenseM,  err,state,thr, modPcng,T\n");
 #else
     sprintf(buffer, "time,mode,vpot,  pcntref,pcntSense,pcntSenseM,  err,state,thr, modPcng,T\n");
@@ -570,7 +574,7 @@ void loop()
       {
         sprintf(buffer, "%s,", String(elapsedTime, 6).c_str()); Serial.print(buffer);
         sprintf(buffer, "%s, ", String(mode).c_str()); Serial.print(buffer);
-#ifdef VPOTISV4
+#ifdef CALIBRATING
         sprintf(buffer, "%s,  ", String(vf2v, 3).c_str()); Serial.print(buffer);
 #else
         sprintf(buffer, "%s,  ", String(vpot, 3).c_str()); Serial.print(buffer);
