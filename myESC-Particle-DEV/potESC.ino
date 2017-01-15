@@ -17,12 +17,12 @@ SYSTEM_THREAD(ENABLED); // Make sure code always run regardless of network statu
 // Test features
 // in myClaw.h  #define CTYPE 1   // 0=P+I, 1=I, 2=PID
 // in myClaw.h  #define KIT   1   // -1=Photon, 0-4 = Arduino
-#define TTYPE 2   // 0=STEP, 1=FREQ, 2=VECT, 3=RAMP (ramp is open loop only)
-//#define VPOTISV4  // Use this to port converted v4 to the vpot serial signal for calibration
-extern int  verbose    = 1;     // [1] Debug, as much as you can tolerate.   For Photon set using "v#"
-bool bare = false;       // [false] The microprocessor is completely disconnected.  Fake inputs and sensors for test purposes.  For Photon set using "b"
-extern bool test = false;       // [false] The turbine and ESC are disconnected.  Fake inputs and sensors for test purposes.  For Photon set using "t"
-double      stepVal = 6;        // [6] Step input, %nf.  Try to make same as freqRespAdder
+#define TTYPE 2          // 0=STEP, 1=FREQ, 2=VECT, 3=RAMP (ramp is open loop only)
+//#define VPOTISV4         // Use this to port converted v4 to the vpot serial signal for calibration
+int     verbose = 1;     // [1] Debug, as much as you can tolerate.   For Photon set using "v#"
+bool    bare = false;    // [false] The microprocessor is completely disconnected.  Fake inputs and sensors for test purposes.  For Photon set using "b"
+bool    test = false;    // [false] The turbine and ESC are disconnected.  Fake inputs and sensors for test purposes.  For Photon set using "t"
+double  stepVal = 6;     // [6] Step input, %nf.  Try to make same as freqRespAdder
 
 #if TTYPE==0  // STEP
 testType testOnButton = STEP;
