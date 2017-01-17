@@ -62,7 +62,11 @@ double ControlLaw::calculate(const int RESET, const double updateTime, const boo
     pcnt_ = modelTS_;
   else
     pcnt_ = fmin(fmax(P_V4_NT[0] + vf2v * (P_V4_NT[1] + vf2v * P_V4_NT[2]) / RPM_P, 0.0), 100);
+#if KIT==5
+  pcnt_ = pcnt_;
+#else
   pcnt_ = fmax(fmin( (throttle_-15)/(18-15), 1), 0)*( pcnt_-modelTS_) + modelTS_;   // <15 deg use model.  >18 use sensor
+#endif
   // Add 1.15 in following line to drive to max
   double throttleRPM = fmin(fmax(1.15*(P_LTALL_NG[0] + P_LTALL_NG[1] * log(fmax(potThrottle, 1))), ngmin), RPM_P*100); // Ng demand at throttle, rpm
   pcntRef_ = (P_NG_NT[0] + P_NG_NT[1] * throttleRPM) / RPM_P;

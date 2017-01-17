@@ -4,7 +4,7 @@
 #include "myTables.h"
 #include "myFilters.h"
 #define CTYPE 1   // 0=P+I, 1=I, 2=PID
-#define KIT   5   // -1=Photon, 0-4 = Arduino
+#define KIT   5   // -1=Photon, 0-5 = Arduino
 
 
 #if   CTYPE==0  // P+I
@@ -104,14 +104,14 @@ static const double LAMBDA = 3.09;                  // Turbine tip speed ratio t
 static const double DELTAV = 5.0;                   // Air velocity turbine first moves, m/s
 #elif KIT==5
 // Ard_Turn_ESC_Gb_Ta
-static const double xALL[6] = {0.,    1.8,  33.6,    48,   69.7,    80.};   // Gain breakpoints, %Nt
+static const double xALL[6] = {0.,    14,   31.9,    48,   69.7,    80.};   // Gain breakpoints, %Nt
 static const double P_V4_NT[3] = {0, 14024,-41};    // Coeff V4(v) to NT(rpm)
 //static const double P_LT_NG[2] = {-25257, 12852};   // Coeff throttle(deg) to NG(rpm)
 static const double P_NG_NT[2] = {-8641, 0.9805};   // Coeff NG(rpm) to NT(rpm)
 static const double P_NT_NG[2] = {8867,  1.0172};   // Coeff NT(rpm) to NG(rpm)
-static const double DCPDL = -1.017;                 // dCpdLambda, dimensionless.  Cp is power coefficient and Lambda is speed tip ratio
+static const double DCPDL = -0.956;                 // dCpdLambda, dimensionless.  Cp is power coefficient and Lambda is speed tip ratio
 static const double LAMBDA = 2.75;                  // Turbine tip speed ratio to air velocity, dimensionless
-static const double DELTAV = 6.0;                   // Air velocity turbine first moves, m/s
+static const double DELTAV = 5.0;                   // Air velocity turbine first moves, m/s
 #endif
 
 // Control Law Class
