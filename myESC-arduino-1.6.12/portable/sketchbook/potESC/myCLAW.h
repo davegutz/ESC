@@ -41,6 +41,9 @@ static const double NG_MAX = 100;   // Maximum trim, %Ng
 static const double P_LTALL_NG[2] = {-25454, 13062};  // Common coeff throttle(deg) to NG(rpm)
 static const double P_NGALL_NT[2] = {-7208, 1.0000};  // Coeff NG(rpm) to NT(rpm)
 static const double P_NTALL_NG[2] = {-7208, 1.0000};  // Coeff NG(rpm) to NT(rpm)
+//
+// Generic throttle-->Ng used in control laws.   These characteristics below (except xALL) are for test consistency.
+// xALL nominally used to calibrate for a wildly different tauT on some kits.   Then problem can concentrate on gain variations.
 #if KIT==-1
 // CalPhotonTurnigy 12/24/2016
 static const double xALL[6] = {0.,    16.,    25.,    47.5,   62.,    80.};   // Gain breakpoints, %Nt
